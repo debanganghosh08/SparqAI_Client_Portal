@@ -14,9 +14,16 @@ export function getProviders(): Provider[] {
     {
       id: "emailbison", name: "EmailBison", kind: "Outbound campaigns",
       description: "Campaign, send, lead and reply reporting from EmailBison.",
-      readiness: Boolean(env.EMAILBISON_API_URL && env.EMAILBISON_API_KEY),
-      requirements: ["Workspace API URL", "Server-side API key", "Client workspace mapping"],
+      readiness: Boolean(env.EMAILBISON_BASE_URL && env.EMAILBISON_API_TOKEN),
+      requirements: ["EMAILBISON_BASE_URL", "EMAILBISON_API_TOKEN", "Client workspace mapping before client reporting"],
       setupUrl: "https://app.emailbison.com/",
+    },
+    {
+      id: "gohighlevel", name: "GoHighLevel", kind: "CRM",
+      description: "Read-only CRM contact and opportunity totals from the configured location.",
+      readiness: Boolean(env.GOHIGHLEVEL_API_KEY && env.GOHIGHLEVEL_LOCATION_ID),
+      requirements: ["GOHIGHLEVEL_API_KEY", "GOHIGHLEVEL_LOCATION_ID", "Read-only contacts and opportunities access"],
+      setupUrl: "https://marketplace.gohighlevel.com/",
     },
     {
       id: "slack", name: "Slack", kind: "Team updates",

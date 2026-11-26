@@ -43,7 +43,7 @@ export default async function Overview() {
   return (
     <PortalShell name={session.name || session.email} role={session.role} portalName={s.portal_name} completedSteps={done} unread={unread}>
       <div className="max-w-5xl mx-auto fade-up">
-        <CampaignAnalytics />
+        <CampaignAnalytics isAdmin={session.role === "admin"} />
         {session.role === "client" && <div className="mb-8"><ClientFeedback initialRating={Number(feedback.rating) || 0} initialComment={String(feedback.comment || "")} /></div>}
         <p className="eyebrow mb-3">{user?.project_name || user?.company || "Client portal"}</p>
         <h1 className="text-[2.1rem] lg:text-4xl font-bold mb-2 title-grad">Welcome{firstName ? `, ${firstName}` : ""}.</h1>

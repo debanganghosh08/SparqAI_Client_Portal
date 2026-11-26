@@ -212,3 +212,4 @@ match the tone of the code around you.
 
 MIT. Do what you like with it, including running it for paying clients.
 See [LICENSE](LICENSE).
+# Live EmailBison and GoHighLevel metrics setup: [docs/live-provider-metrics.md](docs/live-provider-metrics.md)
