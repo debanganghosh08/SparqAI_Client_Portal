@@ -151,7 +151,7 @@ for (const [kind, summary, role, name, when] of activity) {
 console.log(`
   Demo data seeded.
 
-    Client sign-in   http://localhost:5800/login
+    Client sign-in   http://localhost:3000/login
     Email            ${EMAIL}
     Password         ${PASSWORD}
 `);

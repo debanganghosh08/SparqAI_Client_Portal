@@ -2,11 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
-import { getUser, completedSteps, deliverables, files, messages, unreadFor } from "@/lib/clients";
+import { getUser, completedSteps, deliverables, files, formResponse, messages, unreadFor } from "@/lib/clients";
 import { JOURNEY, blockingModuleTitle, isModuleUnlocked, journeyStats } from "@/lib/journey";
 import { fmtDate, timeAgo } from "@/lib/format";
 import PortalShell from "@/components/PortalShell";
 import StatusChip from "@/components/StatusChip";
+import CampaignAnalytics from "@/components/CampaignAnalytics";
+import ClientFeedback from "@/components/ClientFeedback";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,7 @@ export default async function Overview() {
   const thread = messages(session.userId);
   const unread = unreadFor(session.userId, "client");
   const fileCount = files(session.userId).length;
+  const feedback = formResponse(session.userId, "portal_feedback").data;
 
   const firstName = (session.name || "").split(" ")[0];
   const inReview = board.filter((d) => d.status === "review");
@@ -40,23 +43,8 @@ export default async function Overview() {
   return (
     <PortalShell name={session.name || session.email} role={session.role} portalName={s.portal_name} completedSteps={done} unread={unread}>
       <div className="max-w-5xl mx-auto fade-up">
-        <section className="mb-8">
-          <p className="eyebrow mb-2">Spark Labs · Client portal</p>
-          <h1 className="text-3xl font-bold">Campaign overview</h1>
-          <p className="text-sm text-[var(--muted)] mt-2">Example data for Think Marco Technologies. Live integrations are not connected.</p>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
-            {["Campaigns launched", "Leads sourced", "Emails sent", "Replies received"].map((label) => (
-              <div key={label} className="card-flat px-4 py-3.5">
-                <p className="eyebrow mb-1.5">{label}</p>
-                <p className="text-[1.5rem] font-bold">—</p>
-              </div>
-            ))}
-          </div>
-          <div className="card px-5 py-5 mt-4">
-            <h2 className="font-semibold">Campaigns</h2>
-            <p className="text-sm text-[var(--muted)] mt-2">Campaign performance will appear here once a data source is connected.</p>
-          </div>
-        </section>
+        <CampaignAnalytics />
+        {session.role === "client" && <div className="mb-8"><ClientFeedback initialRating={Number(feedback.rating) || 0} initialComment={String(feedback.comment || "")} /></div>}
         <p className="eyebrow mb-3">{user?.project_name || user?.company || "Client portal"}</p>
         <h1 className="text-[2.1rem] lg:text-4xl font-bold mb-2 title-grad">Welcome{firstName ? `, ${firstName}` : ""}.</h1>
         <p className="text-[var(--muted)] text-sm mb-7">

@@ -5,9 +5,9 @@
   "license": "MIT",
   "description": "An open-source client portal for agencies, studios, and freelancers.",
   "scripts": {
-    "dev": "next dev --turbopack -p 5800",
+    "dev": "next dev --turbopack -p 3000",
     "build": "next build --turbopack",
-    "start": "next start -p 5800",
+    "start": "next start -p 3000",
     "lint": "eslint",
     "setup": "node scripts/setup.mjs",
     "seed": "node scripts/seed-demo.mjs",

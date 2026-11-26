@@ -47,6 +47,7 @@ export default function AdminClientDetail({
   messages,
   notes,
   activity,
+  feedback,
 }: {
   initialTab?: string;
   client: Client;
@@ -59,6 +60,7 @@ export default function AdminClientDetail({
   messages: ThreadMessage[];
   notes: { id: number; body: string; authorName: string; createdAt: string }[];
   activity: { id: number; kind: string; summary: string; actorName: string; createdAt: string }[];
+  feedback: { rating: number; comment: string };
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>(() => (TABS.some((t) => t.key === initialTab) ? (initialTab as Tab) : "overview"));
@@ -209,6 +211,10 @@ export default function AdminClientDetail({
 
           <aside className="space-y-5">
             <ClientFields client={client} />
+            <div className="card p-5">
+              <p className="eyebrow mb-3">Client feedback</p>
+              {feedback.rating ? <><p className="text-xl tracking-widest" aria-label={`${feedback.rating} out of 5 stars`}>{"★".repeat(feedback.rating)}<span className="text-[#514f49]">{"★".repeat(5 - feedback.rating)}</span></p><p className="text-xs text-[var(--muted)] mt-2">{feedback.rating}/5 rating</p><p className="text-sm leading-relaxed mt-3">{feedback.comment || "No written note."}</p></> : <p className="text-sm text-[var(--muted)]">No rating submitted yet.</p>}
+            </div>
             <div className="card p-5">
               <p className="eyebrow mb-4">Status</p>
               <dl className="space-y-2.5 text-[13px]">

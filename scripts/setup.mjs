@@ -49,7 +49,7 @@ if (existing) {
 console.log(`
   Portico is set up.
 
-    Sign in   http://localhost:5800/login
+    Sign in   http://localhost:3000/login
     Email     ${ADMIN_EMAIL}
     Password  ${ADMIN_PASSWORD}
 

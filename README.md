@@ -43,7 +43,7 @@ npm run seed       # optional: a demo client with a half-finished project
 npm run dev
 ```
 
-Open **http://localhost:5800**.
+Open **http://localhost:3000**.
 
 ### Sign in
 
@@ -68,6 +68,9 @@ in the bottom-left.
 
 ### For your client
 
+- **Campaign reporting:** sample KPIs, an eight-week leads chart, weekly email-volume bars and a campaign table.
+- **Client feedback:** a saved one-to-five-star rating with optional note, shown to admins on that client's detail page.
+- **Integrations readiness:** EmailBison, Slack and Outlook setup status without implying that live data is connected.
 - **A guided journey.** Five modules, eleven steps, unlocking in order so nobody
   starts the build on a half-filled brief.
 - **Onboarding that sticks.** Intake forms that save as they type, with required
@@ -108,21 +111,13 @@ in the bottom-left.
 
 <p align="center"><a href="docs/screenshots.md">→ Every screen</a></p>
 
-## No API keys, really
+## Configuration and integrations
 
-Portico has exactly one environment variable, and `npm run setup` generates it:
+The base portal requires only `AUTH_SECRET`, which `npm run setup` creates. The Spark Labs portal MVP also includes a campaign dashboard with clearly marked sample data, saved client ratings, and an integrations readiness page for EmailBison, Slack, and Outlook.
 
-```
-AUTH_SECRET=…   # signs the session cookie
-```
+The optional provider values in `.env.example` only indicate whether configuration is present. They do not authorize accounts or sync live data. Provider credentials must stay server-side. See [`docs/SPARQ_PORTAL_MVP.md`](docs/SPARQ_PORTAL_MVP.md) for the current limits and recommended connector sequence.
 
-That is the whole list. There is no Stripe, no Supabase, no S3, no Auth0, no
-email provider, no AI provider. Authentication is bcrypt and a signed JWT in an
-httpOnly cookie. Data is SQLite. Uploads are files on disk, served through a
-route that checks the session on every request — nothing lands in `/public`.
-
-If you want any of those services, they are yours to add. Nothing here assumes
-them.
+Authentication is bcrypt and a signed JWT in an httpOnly cookie. Data is SQLite. Uploads are files on disk, served through a route that checks the session on every request ? nothing lands in `/public`.
 
 ## Stack
 
@@ -184,7 +179,7 @@ swapping the storage layer first.
 
 ```bash
 npm run build
-npm run start          # serves on :5800
+npm run start          # serves on :3000
 ```
 
 Before you expose it:

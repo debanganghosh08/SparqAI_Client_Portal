@@ -49,6 +49,7 @@ const ICONS = {
   users: <><circle cx="12" cy="9" r="3.2" /><path d="M5.5 19.5c0-3.4 2.9-5.6 6.5-5.6s6.5 2.2 6.5 5.6" /></>,
   pulse: <><path d="M3 12.5h4l2.5-6 4 12 2.5-6H21" /></>,
   cog: <><circle cx="12" cy="12" r="2.6" /><path d="M12 4.5V7M12 17v2.5M19.5 12H17M7 12H4.5M17.3 6.7l-1.8 1.8M8.5 15.5l-1.8 1.8M17.3 17.3l-1.8-1.8M8.5 8.5L6.7 6.7" /></>,
+  integrations: <><rect x="3.5" y="4" width="7" height="7" rx="2"/><rect x="13.5" y="13" width="7" height="7" rx="2"/><path d="M10.5 7.5h3a2 2 0 0 1 2 2v3M13.5 16.5h-3a2 2 0 0 1-2-2v-3"/></>,
 };
 
 const ADMIN_NAV: NavItem[] = [
@@ -56,6 +57,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin/work", label: "Work", match: (p) => p.startsWith("/admin/work"), icon: ICONS.board },
   { href: "/admin/messages", label: "Messages", match: (p) => p.startsWith("/admin/messages"), icon: ICONS.chat },
   { href: "/admin/activity", label: "Activity", match: (p) => p.startsWith("/admin/activity"), icon: ICONS.pulse },
+  { href: "/integrations", label: "Integrations", match: (p) => p === "/integrations", icon: ICONS.integrations },
   { href: "/admin/settings", label: "Settings", match: (p) => p.startsWith("/admin/settings"), icon: ICONS.cog },
 ];
 
@@ -104,6 +106,7 @@ export default function PortalShell({
     { href: "/deliverables", label: "Deliverables", match: (p) => p.startsWith("/deliverables"), icon: ICONS.board },
     { href: "/files", label: "Files", match: (p) => p.startsWith("/files"), icon: ICONS.files },
     { href: "/messages", label: "Messages", badge: unread, match: (p) => p.startsWith("/messages"), icon: ICONS.chat },
+    { href: "/integrations", label: "Integrations", match: (p) => p === "/integrations", icon: ICONS.integrations },
   ];
 
   function IconLink({ item }: { item: NavItem }) {

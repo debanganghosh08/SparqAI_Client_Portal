@@ -32,6 +32,7 @@ export default async function AdminClientPage({
     const saved = formResponse(client.id, form.id);
     return { form, data: saved.data as Record<string, string | string[]>, status: saved.status, submittedAt: saved.submittedAt };
   });
+  const feedback = formResponse(client.id, "portal_feedback").data;
 
   const checklists = JOURNEY.flatMap((m) => m.steps)
     .filter((st) => st.type === "checklist")
@@ -82,6 +83,7 @@ export default async function AdminClientPage({
           "SELECT id, kind, summary, actor_name, created_at FROM activity WHERE user_id = ? ORDER BY created_at DESC LIMIT 40",
           [client.id]
         ).map((a) => ({ id: a.id, kind: a.kind, summary: a.summary, actorName: a.actor_name, createdAt: a.created_at }))}
+        feedback={{ rating: Number(feedback.rating) || 0, comment: String(feedback.comment || "") }}
       />
     </PortalShell>
   );

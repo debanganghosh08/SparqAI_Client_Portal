@@ -9,7 +9,7 @@ it that way.
 npm install
 npm run setup
 npm run seed
-npm run dev          # http://localhost:5800
+npm run dev          # http://localhost:3000
 ```
 
 `npm run reset -- --yes` wipes the database and uploads if you want to start
