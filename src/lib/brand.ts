@@ -1,12 +1,11 @@
-// Portico's own defaults. Everything here is overridable at runtime from
-// Admin → Settings, so a fork can be rebranded without touching code: the
-// values below are only the fallbacks a fresh install starts with.
+// Sparq Labs defaults. Everything here is overridable at runtime from
+// Admin → Settings; these values are the fallbacks for a fresh install.
 
 export const BRAND = {
-  name: "Portico",
-  tagline: "The room your clients walk into.",
+  name: "Sparq Labs",
+  tagline: "Your GTM work, clearly in view.",
   description:
-    "An open-source client portal for agencies, studios, and freelancers. Onboarding, deliverables, files, and messages in one calm place.",
+    "The Sparq Labs client portal for project progress, campaign reporting, deliverables, files, and messages.",
   supportEmail: "hello@example.com",
   site: "https://github.com/",
   /** Coal, ink, and one warm stone accent. */

@@ -67,12 +67,12 @@ function WeeklyBars() {
 
 export default function CampaignAnalytics({ isAdmin = false }: { isAdmin?: boolean }) {
   if (isAdmin) return <section className="space-y-4 mb-8">
-    <div><p className="eyebrow mb-2">Spark Labs · Admin view</p><h1 className="text-3xl font-bold">Campaign overview</h1><p className="text-sm text-[var(--muted)] mt-2">Internal account reporting from connected providers.</p></div>
+    <div><p className="eyebrow mb-2">Sparq Labs · Admin view</p><h1 className="text-3xl font-bold">Campaign overview</h1><p className="text-sm text-[var(--muted)] mt-2">Internal account reporting from connected providers.</p></div>
     <LiveMetricsPanel />
   </section>;
 
   return <section className="space-y-4 mb-8">
-    <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="eyebrow mb-2">Spark Labs · Client portal</p><h1 className="text-3xl font-bold">Campaign overview</h1><p className="text-sm text-[var(--muted)] mt-2">A snapshot of your outreach performance.</p></div></div>
+    <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="eyebrow mb-2">Sparq Labs · Client portal</p><h1 className="text-3xl font-bold">Campaign overview</h1><p className="text-sm text-[var(--muted)] mt-2">A snapshot of your outreach performance.</p></div></div>
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 stagger">{kpis.map((item) => <div key={item.label} className="card-flat px-4 py-4"><div className="flex justify-between items-center"><p className="eyebrow">{item.label}</p><span className="text-[var(--muted)]">{item.icon}</span></div><p className="text-2xl font-bold num mt-3">{item.value}</p><p className="text-[11px] text-[var(--muted)] mt-2">{item.delta}</p></div>)}</div>
     <div className="grid xl:grid-cols-[1.55fr_1fr] gap-4"><TrendChart /><WeeklyBars /></div>
     <div className="card overflow-hidden">

@@ -16,11 +16,15 @@ export default function LoginPanel({ portalName, tagline, supportEmail }: { port
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setAttemptsRemaining(null);
+    setRetryAfterSeconds(0);
     setLoading(true);
     const res = await fetch("/api/auth/login", {
       method: "POST",
@@ -31,6 +35,8 @@ export default function LoginPanel({ portalName, tagline, supportEmail }: { port
     setLoading(false);
     if (!res.ok) {
       setError(data.error || "Something went wrong.");
+      setAttemptsRemaining(Number.isInteger(data.attemptsRemaining) ? Number(data.attemptsRemaining) : null);
+      setRetryAfterSeconds(Number(data.retryAfterSeconds) || 0);
       return;
     }
     const next = params.get("next");
@@ -98,13 +104,15 @@ export default function LoginPanel({ portalName, tagline, supportEmail }: { port
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="label" htmlFor="email">Email</label>
-                <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" className="input" autoFocus autoComplete="username" />
+                <input id="email" type="email" required maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" className="input" autoFocus autoComplete="username" />
               </div>
               <div>
                 <label className="label" htmlFor="password">Password</label>
-                <input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••••" className="input" autoComplete="current-password" />
+                <input id="password" type="password" required maxLength={128} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••••" className="input" autoComplete="current-password" />
               </div>
               {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
+              {attemptsRemaining !== null && attemptsRemaining > 0 && <p className="text-xs text-[var(--muted)]">{attemptsRemaining} sign-in attempt{attemptsRemaining === 1 ? "" : "s"} remaining before a 15-minute lockout.</p>}
+              {retryAfterSeconds > 0 && <p className="text-xs text-[var(--muted)]">Try again in about {Math.ceil(retryAfterSeconds / 60)} minute{Math.ceil(retryAfterSeconds / 60) === 1 ? "" : "s"}.</p>}
               <button type="submit" disabled={loading} className="btn btn-primary w-full py-3 mt-1">
                 {loading ? "Signing in…" : "Enter the portal"}
               </button>

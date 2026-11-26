@@ -22,7 +22,7 @@ export default async function IntegrationsPage() {
           <p className="text-sm text-[var(--muted)] leading-relaxed mt-5">{provider.description}</p>
           {session.role === "admin" && <div className="mt-5 pt-4 hairline"><p className="eyebrow mb-3">Setup checklist</p><ul className="space-y-2">{provider.requirements.map((item) => <li key={item} className="text-xs text-[var(--muted)] flex gap-2"><span className="text-[var(--faint)]">•</span>{item}</li>)}</ul></div>}
           {session.role === "admin" && <a href={provider.setupUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm mt-5 self-start">Open provider setup ↗</a>}
-          <p className="mono mt-auto pt-5">{session.role === "admin" ? (provider.readiness ? "Server credentials detected · test from admin dashboard" : "Waiting for secure server configuration") : "Connections are managed by Spark Labs"}</p>
+          <p className="mono mt-auto pt-5">{session.role === "admin" ? (provider.readiness ? "Server credentials detected · test from admin dashboard" : "Waiting for secure server configuration") : "Connections are managed by Sparq Labs"}</p>
         </article>)}
       </div>
       <div className="card p-5 mt-5"><p className="eyebrow mb-2">Next step for engineering</p><p className="text-sm text-[var(--muted)] leading-relaxed">Implement one provider at a time: OAuth/API authorization, encrypted credential storage scoped to each client, read-only sync, pagination and backfill, then reconcile each source’s counts against its own UI before publishing KPIs.</p></div>

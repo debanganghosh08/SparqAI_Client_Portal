@@ -10,10 +10,10 @@ export async function POST(req: Request) {
 
   const { password } = await req.json().catch(() => ({}));
   if (!isStrongEnough(password)) {
-    return NextResponse.json({ error: "Use at least 8 characters." }, { status: 400 });
+    return NextResponse.json({ error: "Use 12–128 characters with an uppercase letter, a number, and a symbol." }, { status: 400 });
   }
 
-  run("UPDATE users SET password_hash = ?, must_reset = 0 WHERE id = ?", [bcrypt.hashSync(String(password), 10), session.userId]);
+  run("UPDATE users SET password_hash = ?, must_reset = 0, session_version = session_version + 1 WHERE id = ?", [bcrypt.hashSync(String(password), 12), session.userId]);
   logActivity({
     userId: session.role === "client" ? session.userId : null,
     actorName: session.name || session.email,
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     summary: "Set their password",
   });
 
-  const token = await createSessionToken({ ...session, mustReset: false });
+  const token = await createSessionToken({ ...session, mustReset: false, sessionVersion: session.sessionVersion + 1 });
   const res = NextResponse.json({ ok: true });
   res.cookies.set(sessionCookie.name, token, sessionCookie.options);
   return res;

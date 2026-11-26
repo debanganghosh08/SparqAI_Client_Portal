@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       cleanEmail,
       String(name).trim().slice(0, 120),
       String(company).trim().slice(0, 160),
-      bcrypt.hashSync(password, 10),
+      bcrypt.hashSync(password, 12),
       String(projectName).trim().slice(0, 160),
       String(startsOn).slice(0, 20),
     ]
@@ -50,7 +50,7 @@ export async function PATCH(req: Request) {
 
   if (action === "reset-password") {
     const password = generatePassword();
-    run("UPDATE users SET password_hash = ?, must_reset = 1 WHERE id = ?", [bcrypt.hashSync(password, 10), user.id]);
+    run("UPDATE users SET password_hash = ?, must_reset = 1, session_version = session_version + 1 WHERE id = ?", [bcrypt.hashSync(password, 12), user.id]);
     logActivity({ userId: user.id, actorName: session.name || session.email, actorRole: "admin", kind: "client_reset", summary: `Issued a new one-time password` });
     return NextResponse.json({ ok: true, password });
   }

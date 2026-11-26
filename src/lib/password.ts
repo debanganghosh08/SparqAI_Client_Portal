@@ -6,9 +6,16 @@ export function generatePassword(): string {
   const w1 = words[crypto.randomInt(words.length)];
   const w2 = words[crypto.randomInt(words.length)];
   const n = String(crypto.randomInt(10, 100));
-  return `${w1}-${w2}-${n}`;
+  return `${w1[0].toUpperCase()}${w1.slice(1)}-${w2}-${n}@`;
 }
 
 export function isStrongEnough(password: string): boolean {
-  return typeof password === "string" && password.trim().length >= 8;
+  return typeof password === "string"
+    && password.length >= 12
+    && password.length <= 128
+    && /[A-Z]/.test(password)
+    && /\d/.test(password)
+    && /[^A-Za-z0-9]/.test(password);
 }
+
+export const PASSWORD_REQUIREMENTS = "Use 12–128 characters with at least one uppercase letter, number, and symbol.";

@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: { default: `${name} · Client Portal`, template: `%s · ${name}` },
     description: s.portal_tagline || BRAND.description,
     icons: { icon: "/brand/favicon.svg" },
-    openGraph: { title: `${name} · Client Portal`, description: s.portal_tagline || BRAND.description, images: ["/brand/og.jpg"] },
+    openGraph: { title: `${name} · Client Portal`, description: s.portal_tagline || BRAND.description, images: ["/brand/sparq-labs-portal.svg"] },
   };
 }
 

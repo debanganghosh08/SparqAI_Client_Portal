@@ -1,5 +1,5 @@
 import { all, setSetting } from "./db";
-import { SETTING_DEFAULTS } from "./brand";
+import { BRAND, SETTING_DEFAULTS } from "./brand";
 
 export type PortalSettings = Record<string, string>;
 
@@ -9,7 +9,13 @@ export function getSettings(): PortalSettings {
   const stored = Object.fromEntries(rows.map((r) => [r.key, r.value]));
   const merged: PortalSettings = { ...SETTING_DEFAULTS };
   for (const [k, v] of Object.entries(stored)) {
-    if (v !== "") merged[k] = v;
+    if (v !== "") {
+      // Replace the starter template's old defaults in databases created before
+      // this portal was branded for Sparq Labs, while preserving custom names.
+      if (k === "portal_name" && v.trim().toLowerCase() === "portico") merged[k] = BRAND.name;
+      else if (k === "portal_tagline" && v.trim() === "The room your clients walk into.") merged[k] = "Your GTM work, clearly in view.";
+      else merged[k] = v;
+    }
     else if (k in SETTING_DEFAULTS) merged[k] = "";
   }
   return merged;

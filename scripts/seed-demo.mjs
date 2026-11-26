@@ -3,6 +3,7 @@
 // conversation — enough to see every screen with something in it.
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import Database from "better-sqlite3";
 import bcrypt from "bcryptjs";
 import { SCHEMA } from "../src/lib/schema.mjs";
@@ -15,10 +16,14 @@ db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
 db.exec(SCHEMA);
 
-const EMAIL = (process.env.DEMO_EMAIL || "dana@northwind.studio").trim().toLowerCase();
-const PASSWORD = process.env.DEMO_PASSWORD || "portico-client";
+const EMAIL = (process.env.DEMO_EMAIL || "demo@sparqlabs.test").trim().toLowerCase();
+const PASSWORD = process.env.DEMO_PASSWORD || `${crypto.randomBytes(18).toString("base64url")}@Z7`;
+if (PASSWORD.length < 12 || !/[A-Z]/.test(PASSWORD) || !/\d/.test(PASSWORD) || !/[^A-Za-z0-9]/.test(PASSWORD)) {
+  throw new Error("DEMO_PASSWORD must be 12+ characters and include uppercase, number and symbol.");
+}
 
 let client = db.prepare("SELECT * FROM users WHERE email = ?").get(EMAIL);
+let clientCreated = false;
 if (client) {
   console.log(`→ Demo client ${EMAIL} already exists (id ${client.id}) — refreshing their data`);
   for (const t of ["progress", "form_responses", "deliverables", "files", "messages", "notes", "activity"]) {
@@ -30,8 +35,9 @@ if (client) {
       `INSERT INTO users (email, name, company, password_hash, role, must_reset, seen_intro, project_name, starts_on, last_seen_at)
        VALUES (?, 'Dana Whitfield', 'Northwind Studio', ?, 'client', 0, 1, 'Brand and site refresh', date('now','-9 days'), datetime('now','-2 hours'))`
     )
-    .run(EMAIL, bcrypt.hashSync(PASSWORD, 10));
+    .run(EMAIL, bcrypt.hashSync(PASSWORD, 12));
   client = { id: Number(info.lastInsertRowid) };
+  clientCreated = true;
   console.log(`→ Created demo client ${EMAIL}`);
 }
 
@@ -148,10 +154,6 @@ for (const [kind, summary, role, name, when] of activity) {
   );
 }
 
-console.log(`
-  Demo data seeded.
-
-    Client sign-in   http://localhost:3000/login
-    Email            ${EMAIL}
-    Password         ${PASSWORD}
-`);
+console.log(clientCreated
+  ? `\n  Demo data seeded.\n\n    Client sign-in   http://localhost:3000/login\n    Email            ${EMAIL}\n    Password         ${PASSWORD}\n`
+  : "\n  Demo data refreshed. Existing client password was left unchanged.\n");

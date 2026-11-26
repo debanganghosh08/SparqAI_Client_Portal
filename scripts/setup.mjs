@@ -12,9 +12,12 @@ const root = process.cwd();
 const dataDir = path.join(root, "data");
 const envPath = path.join(root, ".env.local");
 
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "admin@portico.dev").trim().toLowerCase();
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "portico-admin";
-const ADMIN_NAME = process.env.ADMIN_NAME || "Portal Admin";
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "admin@sparqlabs.ai").trim().toLowerCase();
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || `${crypto.randomBytes(24).toString("base64url")}A9@`;
+const ADMIN_NAME = process.env.ADMIN_NAME || "Sparq Labs Admin";
+if (ADMIN_PASSWORD.length < 12 || !/[A-Z]/.test(ADMIN_PASSWORD) || !/\d/.test(ADMIN_PASSWORD) || !/[^A-Za-z0-9]/.test(ADMIN_PASSWORD)) {
+  throw new Error("ADMIN_PASSWORD must be 12+ characters and include uppercase, number and symbol.");
+}
 
 fs.mkdirSync(path.join(dataDir, "uploads"), { recursive: true });
 
@@ -36,25 +39,24 @@ db.exec(SCHEMA);
 console.log("→ Database ready at data/portico.db");
 
 // 3. The admin account.
-const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(ADMIN_EMAIL);
+const existing = db.prepare("SELECT id, email FROM users WHERE role = 'admin' ORDER BY id LIMIT 1").get();
+let adminCreated = false;
 if (existing) {
-  console.log(`→ Admin ${ADMIN_EMAIL} already exists, leaving it alone`);
+  console.log("→ An admin account already exists, leaving its credentials unchanged");
 } else {
   db.prepare(
     "INSERT INTO users (email, name, password_hash, role, must_reset, seen_intro) VALUES (?, ?, ?, 'admin', 0, 1)"
-  ).run(ADMIN_EMAIL, ADMIN_NAME, bcrypt.hashSync(ADMIN_PASSWORD, 10));
+  ).run(ADMIN_EMAIL, ADMIN_NAME, bcrypt.hashSync(ADMIN_PASSWORD, 12));
   console.log("→ Created the admin account");
+  adminCreated = true;
 }
 
 console.log(`
-  Portico is set up.
+  Sparq Labs Client Portal is set up.
 
     Sign in   http://localhost:3000/login
-    Email     ${ADMIN_EMAIL}
-    Password  ${ADMIN_PASSWORD}
-
-  Change the password from Account once you are in — and always change it
-  before this is reachable from the internet.
+    Admin     ${adminCreated ? ADMIN_EMAIL : "Existing account preserved"}
+    Password  ${adminCreated ? ADMIN_PASSWORD : "Unchanged"}
 
   Next:  npm run seed   (a demo client to look around with)
          npm run dev

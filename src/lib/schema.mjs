@@ -8,6 +8,7 @@ export const SCHEMA = `
     company TEXT NOT NULL DEFAULT '',
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'client',
+    session_version INTEGER NOT NULL DEFAULT 0,
     must_reset INTEGER NOT NULL DEFAULT 1,
     seen_intro INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'active',
@@ -103,6 +104,13 @@ export const SCHEMA = `
   CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL DEFAULT ''
+  );
+
+  CREATE TABLE IF NOT EXISTS auth_login_attempts (
+    bucket_hash TEXT PRIMARY KEY,
+    failures INTEGER NOT NULL DEFAULT 0,
+    window_started_at INTEGER NOT NULL,
+    blocked_until INTEGER
   );
 
   CREATE INDEX IF NOT EXISTS idx_deliverables_user ON deliverables(user_id);

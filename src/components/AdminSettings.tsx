@@ -41,9 +41,19 @@ export default function AdminSettings({ groups, values }: { groups: { group: str
 
       <div className="card p-5 mb-5">
         <p className="eyebrow mb-4">Preview</p>
-        <Logo size={30} name={v.portal_name || "Portico"} />
+        <Logo size={30} name={v.portal_name || "Sparq Labs"} />
         <p className="text-[13px] text-[var(--muted)] mt-3">{v.portal_tagline}</p>
       </div>
+
+      <section className="card p-5 mb-5" aria-labelledby="security-baseline">
+        <p className="eyebrow mb-3" id="security-baseline">Security baseline</p>
+        <ul className="space-y-2 text-sm text-[var(--muted)]">
+          <li>Passwords require 12–128 characters, an uppercase letter, a number, and a symbol.</li>
+          <li>Five failed sign-in attempts lock an account for 15 minutes. This is enforced on the server for client and admin accounts.</li>
+          <li>Passwords are stored as bcrypt hashes. Password changes revoke previous sessions.</li>
+          <li>Production requires a configured <code>AUTH_SECRET</code>; session cookies are HTTP-only and secure.</li>
+        </ul>
+      </section>
 
       <div className="space-y-5">
         {groups.map((g) => (

@@ -1,4 +1,4 @@
-// Portico stores everything in one SQLite file (data/portico.db) and one
+// The portal stores everything in one SQLite file (data/portico.db) and one
 // uploads directory (data/uploads). No external service, no API key, no
 // migration tool: the schema in schema.mjs is created on first import and is
 // the single source of truth.
@@ -16,6 +16,10 @@ db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
 
 db.exec(SCHEMA);
+const userColumns = db.pragma("table_info(users)") as { name: string }[];
+if (!userColumns.some((column) => column.name === "session_version")) {
+  db.exec("ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0");
+}
 
 export type Role = "admin" | "client";
 
@@ -26,6 +30,7 @@ export type User = {
   company: string;
   password_hash: string;
   role: Role;
+  session_version: number;
   must_reset: number;
   seen_intro: number;
   status: "active" | "archived";

@@ -1,13 +1,12 @@
 <p align="center">
-  <img src="public/brand/banner.jpg" alt="Portico — the open-source client portal" width="100%">
+  <img src="public/brand/sparq-labs-portal.svg" alt="Sparq Labs client portal" width="100%">
 </p>
 
-<h1 align="center">Portico</h1>
+<h1 align="center">Sparq Labs Client Portal</h1>
 
 <p align="center">
-  <strong>The room your clients walk into.</strong><br>
-  An open-source client portal for agencies, studios, and freelancers — onboarding,
-  deliverables, files, and messages in one calm place.
+  <strong>Your GTM work, clearly in view.</strong><br>
+  Client onboarding, campaign reporting, deliverables, files, and messages from Sparq Labs.
 </p>
 
 <p align="center">
@@ -21,7 +20,7 @@
 
 Most client work goes wrong in the gaps: the brief that lived in an email thread,
 the file nobody could find, the fourth "just checking where we are" message.
-Portico closes those gaps. Your client gets one link, one login, and one place
+The Sparq Labs portal closes those gaps. Your client gets one link, one login, and one place
 where everything about their project lives.
 
 It runs entirely on your own machine or server. **One SQLite file, one uploads
@@ -35,8 +34,8 @@ storage, not for anything.
 ## Try it in two minutes
 
 ```bash
-git clone https://github.com/ufkrdev/portico.git
-cd portico
+git clone https://github.com/debanganghosh08/SparqAI_Client_Portal.git
+cd SparqAI_Client_Portal
 npm install
 npm run setup      # creates the database, the admin account, and a signing secret
 npm run seed       # optional: a demo client with a half-finished project
@@ -47,13 +46,14 @@ Open **http://localhost:3000**.
 
 ### Sign in
 
-`npm run setup` prints these, and `npm run seed` adds the client. They are
-deliberately boring defaults for a local install:
+`npm run setup` creates a strong random admin password and prints it once when
+creating a new local database. `npm run seed` can add a demo client with its own
+strong random password:
 
 | Role | Email | Password |
 | --- | --- | --- |
-| **Admin** | `admin@portico.dev` | `portico-admin` |
-| **Client** (from `npm run seed`) | `dana@northwind.studio` | `portico-client` |
+| **Admin** | `admin@sparqlabs.ai` | One-time random password printed by setup |
+| **Client** (from `npm run seed`) | `demo@sparqlabs.test` | One-time random password printed by seed |
 
 Sign in as the admin to run the business; sign in as Dana to see exactly what a
 client sees. The admin can also switch to the client view from the account menu
@@ -113,11 +113,16 @@ in the bottom-left.
 
 ## Configuration and integrations
 
-The base portal requires only `AUTH_SECRET`, which `npm run setup` creates. The Spark Labs portal MVP also includes a campaign dashboard with clearly marked sample data, saved client ratings, and an integrations readiness page for EmailBison, Slack, and Outlook.
+The base portal requires only `AUTH_SECRET`, which `npm run setup` creates. The Sparq Labs portal MVP also includes a campaign dashboard with clearly marked sample data, saved client ratings, and an integrations readiness page for EmailBison, Slack, and Outlook.
 
 The optional provider values in `.env.example` only indicate whether configuration is present. They do not authorize accounts or sync live data. Provider credentials must stay server-side. See [`docs/SPARQ_PORTAL_MVP.md`](docs/SPARQ_PORTAL_MVP.md) for the current limits and recommended connector sequence.
 
 Authentication is bcrypt and a signed JWT in an httpOnly cookie. Data is SQLite. Uploads are files on disk, served through a route that checks the session on every request. Nothing lands in `/public`.
+
+Passwords must be 12–128 characters and include an uppercase letter, a number,
+and a symbol. Login failures are limited to five attempts per account in a
+15-minute window, enforced by the server for both roles; the UI shows the
+remaining attempts and lockout. Password changes revoke older sessions.
 
 ## Stack
 
@@ -172,7 +177,7 @@ examples.
 
 ## Running it for real
 
-Portico writes to the local filesystem, so it wants a host with a real disk: a
+The portal writes to the local filesystem, so it wants a host with a real disk: a
 VPS, a Raspberry Pi, a Docker container with a volume, a Mac in a cupboard.
 It will not work on a serverless platform with an ephemeral filesystem without
 swapping the storage layer first.

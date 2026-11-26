@@ -1,5 +1,4 @@
-// The Portico lockup: an arch — the entryway a portico is — drawn inline so it
-// stays crisp at any size and inherits the page font for the wordmark.
+// Sparq Labs wordmark paired with the existing arch mark.
 
 export function LogoMark({ size = 28 }: { size?: number }) {
   return (
@@ -20,7 +19,7 @@ export function LogoMark({ size = 28 }: { size?: number }) {
 
 export default function Logo({
   size = 28,
-  name = "Portico",
+  name = "Sparq Labs",
   wordmark = true,
   stacked = false,
   className = "",

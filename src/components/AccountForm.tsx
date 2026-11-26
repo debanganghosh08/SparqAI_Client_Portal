@@ -47,8 +47,8 @@ export default function AccountForm({ name: initialName }: { name: string }) {
           </div>
           <div>
             <label className="label" htmlFor="new">New password</label>
-            <input id="new" type="password" className="input" value={newPassword} onChange={(e) => setNew(e.target.value)} placeholder="At least 8 characters" autoComplete="new-password" />
-            <p className="help">Leave both blank to keep your current password.</p>
+            <input id="new" type="password" minLength={12} maxLength={128} className="input" value={newPassword} onChange={(e) => setNew(e.target.value)} placeholder="12+ characters, uppercase, number, symbol" autoComplete="new-password" />
+            <p className="help">12–128 characters with an uppercase letter, a number, and a symbol. Leave both password fields blank to keep your current password.</p>
           </div>
         </div>
       </div>

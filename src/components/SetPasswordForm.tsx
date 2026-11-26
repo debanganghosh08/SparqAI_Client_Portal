@@ -17,7 +17,9 @@ export default function SetPasswordForm({ portalName, name, isAdmin }: { portalN
     e.preventDefault();
     setError("");
     if (password !== confirm) return setError("Those two do not match.");
-    if (password.trim().length < 8) return setError("Use at least 8 characters.");
+    if (password.length < 12 || password.length > 128 || !/[A-Z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+      return setError("Use 12–128 characters with an uppercase letter, a number, and a symbol.");
+    }
 
     setLoading(true);
     const res = await fetch("/api/auth/set-password", {
@@ -46,11 +48,11 @@ export default function SetPasswordForm({ portalName, name, isAdmin }: { portalN
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="label" htmlFor="pw">New password</label>
-              <input id="pw" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" className="input" autoFocus autoComplete="new-password" />
+              <input id="pw" type="password" required minLength={12} maxLength={128} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="12+ characters, uppercase, number, symbol" className="input" autoFocus autoComplete="new-password" />
             </div>
             <div>
               <label className="label" htmlFor="pw2">Confirm it</label>
-              <input id="pw2" type="password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Type it again" className="input" autoComplete="new-password" />
+              <input id="pw2" type="password" required minLength={12} maxLength={128} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Type it again" className="input" autoComplete="new-password" />
             </div>
             {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
             <button type="submit" disabled={loading} className="btn btn-primary w-full py-3 mt-1">
