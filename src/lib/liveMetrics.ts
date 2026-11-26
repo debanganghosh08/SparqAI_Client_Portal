@@ -14,20 +14,17 @@ export type LiveMetrics = {
     truncated: boolean;
   }>;
   gohighlevel: ProviderResult<{
-    contacts: number;
-    contactsTruncated: boolean;
-    opportunities: number;
+    contacts: number | null;
+    contactsPartial: boolean;
+    opportunities: number | null;
     opportunitiesTruncated: boolean;
-    open: number;
-    won: number;
-    lost: number;
-    openPipelineValue: number | null;
-    currency: string | null;
+    open: number | null;
+    won: number | null;
+    lost: number | null;
   }>;
 };
 
 const PAGE_CAP = 20;
-const PAGE_SIZE = 100;
 const TIMEOUT_MS = 8_000;
 
 async function requestJson(url: string, headers: Record<string, string>, init?: RequestInit) {
@@ -71,16 +68,6 @@ function sumMetric(rows: Record<string, unknown>[], aliases: string[]): number |
   return values.length && values.every((value) => value !== null)
     ? values.reduce<number>((sum, value) => sum + (value ?? 0), 0)
     : null;
-}
-
-function numberValue(...values: unknown[]): number {
-  for (const candidate of values) {
-    if (candidate !== undefined && candidate !== null && candidate !== "") {
-      const parsed = Number(candidate);
-      if (Number.isFinite(parsed)) return parsed;
-    }
-  }
-  return 0;
 }
 
 async function emailBison(): Promise<LiveMetrics["emailbison"]> {
@@ -133,78 +120,48 @@ async function goHighLevel(): Promise<LiveMetrics["gohighlevel"]> {
   if (!token || !locationId) return { state: "not_configured", message: "Add the GoHighLevel token and location ID to the server environment." };
   const headers = {
     Authorization: `Bearer ${token}`,
-    Version: "2021-07-28",
+    Version: "v3",
     Accept: "application/json",
     "Content-Type": "application/json",
   };
   try {
-    const fetchCollection = async (kind: "contacts" | "opportunities") => {
-      const rows: Record<string, unknown>[] = [];
-      let total: number | null = null;
-      let cursorId = "";
-      let cursorTime = "";
-      let hitPageCap = false;
-      for (let page = 1; page <= PAGE_CAP; page += 1) {
-        const url = new URL(`https://services.leadconnectorhq.com/${kind === "contacts" ? "contacts/" : "opportunities/search"}`);
-        url.searchParams.set("limit", String(PAGE_SIZE));
-        if (kind === "contacts") {
-          url.searchParams.set("locationId", locationId);
-          if (cursorId) url.searchParams.set("startAfterId", cursorId);
-          if (cursorTime) url.searchParams.set("startAfter", cursorTime);
-        } else {
-          url.searchParams.set("page", String(page));
-          url.searchParams.set("location_id", locationId);
-        }
-        const payload = await requestJson(url.toString(), headers);
-        const batch = items(payload, kind);
-        rows.push(...batch);
-        const meta = (payload.meta ?? {}) as Record<string, unknown>;
-        if (meta.total !== undefined && meta.total !== null && Number.isFinite(Number(meta.total))) total = Number(meta.total);
-        if (!batch.length || (total !== null && rows.length >= total)) break;
-        if (kind === "contacts") {
-          const lastId = String(meta.startAfterId ?? "");
-          const lastTime = String(meta.startAfter ?? "");
-          if (!lastId || (lastId === cursorId && lastTime === cursorTime)) break;
-          cursorId = lastId;
-          cursorTime = lastTime;
-        } else if (batch.length < PAGE_SIZE) break;
-        if (page === PAGE_CAP) hitPageCap = true;
-      }
-      return { rows, truncated: total !== null ? rows.length < total : hitPageCap };
-    };
+    // The v3 contact search returns a total count while returning at most one
+    // record. We discard that record immediately; no contact PII is retained.
+    const contactPayload = await requestJson("https://services.leadconnectorhq.com/contacts/search", headers, {
+      method: "POST",
+      body: JSON.stringify({ locationId, pageLimit: 1, page: 1 }),
+    });
+    const contactTotal = Number(contactPayload.total);
+    const contacts = Number.isFinite(contactTotal) ? contactTotal : null;
+    const contactsPartial = contacts === null;
 
-    const [contacts, opportunities] = await Promise.all([fetchCollection("contacts"), fetchCollection("opportunities")]);
-    let open = 0;
-    let won = 0;
-    let lost = 0;
-    let openPipelineValue = 0;
-    let sawCurrency = "";
-    for (const opportunity of opportunities.rows) {
-      const status = String(opportunity.status ?? opportunity.status_name ?? "open").toLowerCase().replace(/[- ]/g, "_");
-      if (["won", "win", "closed_won", "closedwon"].includes(status)) won += 1;
-      else if (["lost", "closed_lost", "closedlost"].includes(status)) lost += 1;
-      else {
-        open += 1;
-        openPipelineValue += numberValue(opportunity.monetaryValue, opportunity.value, opportunity.expectedValue, opportunity.amount, opportunity.price);
-      }
-      const currency = String(opportunity.currency ?? "").trim();
-      if (currency && !sawCurrency) sawCurrency = currency;
-      else if (currency && currency !== sawCurrency) sawCurrency = "MIXED";
-    }
-    const partial = contacts.truncated || opportunities.truncated;
+    const opportunityCount = async (status: "all" | "open" | "won" | "lost") => {
+      const url = new URL("https://services.leadconnectorhq.com/opportunities/search");
+      url.searchParams.set("locationId", locationId);
+      url.searchParams.set("limit", "1");
+      url.searchParams.set("page", "1");
+      url.searchParams.set("status", status);
+      const payload = await requestJson(url.toString(), headers);
+      const meta = (payload.meta ?? {}) as Record<string, unknown>;
+      const total = Number(meta.total);
+      return Number.isFinite(total) ? total : null;
+    };
+    const [opportunities, open, won, lost] = await Promise.all([
+      opportunityCount("all"), opportunityCount("open"), opportunityCount("won"), opportunityCount("lost"),
+    ]);
+    const opportunitiesTruncated = opportunities === null || open === null || won === null || lost === null;
+    const partial = contactsPartial || opportunitiesTruncated;
     return {
       state: "connected",
-      message: partial ? "Counts are partial: a 2,000-record safety cap was reached." : "CRM totals loaded.",
+      message: partial ? "One or more exact count totals were unavailable from the CRM response." : "CRM totals loaded from provider count metadata.",
       data: {
-        contacts: contacts.rows.length,
-        contactsTruncated: contacts.truncated,
-        opportunities: opportunities.rows.length,
-        opportunitiesTruncated: opportunities.truncated,
+        contacts,
+        contactsPartial,
+        opportunities,
+        opportunitiesTruncated,
         open,
         won,
         lost,
-        openPipelineValue: sawCurrency ? (sawCurrency === "MIXED" ? null : openPipelineValue) : null,
-        currency: sawCurrency || null,
       },
     };
   } catch (error) {

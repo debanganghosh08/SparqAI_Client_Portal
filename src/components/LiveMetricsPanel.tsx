@@ -60,11 +60,10 @@ export default function LiveMetricsPanel() {
           <div className="flex justify-between items-center gap-3"><h3 className="font-semibold">GoHighLevel</h3><span className={statusClass(data.gohighlevel.state)}>{data.gohighlevel.state.replaceAll("_", " ")}</span></div>
           <p className="text-xs text-[var(--muted)] mt-2">{data.gohighlevel.message}</p>
           {data.gohighlevel.data && <div className="grid grid-cols-2 gap-3 mt-4">
-            <Metric label={data.gohighlevel.data.contactsTruncated ? "Contacts (partial)" : "CRM contacts"} value={count(data.gohighlevel.data.contacts)} />
+            <Metric label={data.gohighlevel.data.contactsPartial ? "Contacts (partial)" : "CRM contacts"} value={count(data.gohighlevel.data.contacts)} />
             <Metric label={data.gohighlevel.data.opportunitiesTruncated ? "Opportunities (partial)" : "Opportunities"} value={count(data.gohighlevel.data.opportunities)} />
             <Metric label="Open" value={count(data.gohighlevel.data.open)} />
             <Metric label="Won / lost" value={`${count(data.gohighlevel.data.won)} / ${count(data.gohighlevel.data.lost)}`} />
-            <Metric label="Open pipeline value" value={data.gohighlevel.data.openPipelineValue === null ? "Unavailable · currency not confirmed" : `${data.gohighlevel.data.currency} ${count(data.gohighlevel.data.openPipelineValue)}`} />
           </div>}
         </article>
       </div>
@@ -74,7 +73,7 @@ export default function LiveMetricsPanel() {
           {data.emailbison.data.campaigns.map((campaign, index) => <tr key={`${campaign.name}-${index}`}><td className="font-medium">{campaign.name}</td><td>{campaign.status}</td><td className="num">{count(campaign.emailsSent)}</td><td className="num">{count(campaign.replies)}</td></tr>)}
         </tbody></table>
       </div> : null}
-      <p className="text-[11px] leading-relaxed text-[var(--faint)] mt-4">Unavailable metrics are not returned by the provider endpoint. These shared workspace totals are not assigned to a specific client. CRM results stop after 2,000 records per collection and are marked partial when capped.</p>
+      <p className="text-[11px] leading-relaxed text-[var(--faint)] mt-4">Unavailable metrics are not returned by the provider endpoint. These shared workspace totals are not assigned to a specific client. CRM counts use provider count metadata; the app does not import contact or opportunity records.</p>
     </>}
   </section>;
 }

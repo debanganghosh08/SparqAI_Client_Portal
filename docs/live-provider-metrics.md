@@ -18,7 +18,7 @@ Do not add a `NEXT_PUBLIC_` prefix. Do not paste actual credentials into Slack, 
 ## 2. Create or retrieve provider credentials
 
 - **EmailBison:** in the relevant workspace, open its API/developer settings and create a read-only API token if the workspace offers scoped tokens. Use that workspace's API base URL. The provider documents bearer-token API authentication at [EmailBison Developers](https://emailbison.com/developers).
-- **GoHighLevel:** in the Sparq Labs sub-account, create a Private Integration Token with `contacts.readonly` and `opportunities.readonly`. Copy the sub-account Location ID. HighLevel documents the required scopes for [contacts](https://marketplace.gohighlevel.com/docs/ghl/contacts/get-contact/) and [opportunities](https://marketplace.gohighlevel.com/docs/ghl/opportunities/search-opportunity/).
+- **GoHighLevel:** in the Sparq Labs sub-account, create a Private Integration Token with `contacts.readonly` and `opportunities.readonly`. Copy the sub-account Location ID. The integration uses the current v3 API. HighLevel documents the required scopes and token type for [contacts](https://marketplace.gohighlevel.com/docs/ghl/contacts/search-contacts-advanced/) and [opportunities](https://marketplace.gohighlevel.com/docs/ghl/opportunities/search-opportunity/).
 
 ## 3. Run and refresh
 
@@ -27,7 +27,7 @@ Restart the dev server after editing `.env.local` (`npm run dev`). Sign in using
 ## What the snapshot means
 
 - EmailBison metrics are aggregated from campaign-list fields only. A metric displays **Unavailable** when this workspace does not include that field. It does not crawl replies; the root SparqAI ingestion notes document why full reply enumeration is expensive.
-- GoHighLevel reports CRM contacts and opportunity counts classified as open, won, or lost. It inspects at most 2,000 records of each type per refresh. No names, emails, phones, or individual CRM records are returned to the browser.
-- Open pipeline amount stays unavailable unless the response confirms a single currency.
+- GoHighLevel v3 reports contact and opportunity counts from provider totals. The app requests a one-record sample to read total metadata, then discards it; it does not import contact or opportunity rows. No names, emails, phones, or individual CRM records are returned to the browser.
+- Open, won and lost opportunity totals are requested independently. Pipeline value is not imported.
 - These are shared agency workspace totals. They are **not client-specific**. Client logins continue to see clearly marked illustrative dashboard data until a verified provider-workspace-to-client mapping and sync isolation are implemented.
 - This is a live read, not a scheduled sync, trend history, or EmailBison/GoHighLevel write integration. Credentials currently belong to this server deployment; move them into the hosting provider's encrypted environment settings before deployment.
