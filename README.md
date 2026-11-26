@@ -117,7 +117,7 @@ The base portal requires only `AUTH_SECRET`, which `npm run setup` creates. The 
 
 The optional provider values in `.env.example` only indicate whether configuration is present. They do not authorize accounts or sync live data. Provider credentials must stay server-side. See [`docs/SPARQ_PORTAL_MVP.md`](docs/SPARQ_PORTAL_MVP.md) for the current limits and recommended connector sequence.
 
-Authentication is bcrypt and a signed JWT in an httpOnly cookie. Data is SQLite. Uploads are files on disk, served through a route that checks the session on every request ? nothing lands in `/public`.
+Authentication is bcrypt and a signed JWT in an httpOnly cookie. Data is SQLite. Uploads are files on disk, served through a route that checks the session on every request. Nothing lands in `/public`.
 
 ## Stack
 
