@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import StatusChip, { DELIVERABLE_STATUSES, statusLabel } from "./StatusChip";
+import { safeHref } from "@/lib/url";
 import { fmtDate } from "@/lib/format";
 
 export type AdminDeliverable = {
@@ -126,8 +127,8 @@ export default function AdminDeliverables({ userId, items }: { userId: number; i
                   {d.summary && <p className="text-[13px] text-[var(--muted)] leading-relaxed">{d.summary}</p>}
                   <div className="flex items-center gap-4 mt-2">
                     {d.dueOn && <span className="mono">Due {fmtDate(d.dueOn)}</span>}
-                    {d.url && (
-                      <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-xs hover:underline underline-offset-2" style={{ color: "var(--accent)" }}>
+                    {safeHref(d.url) && (
+                      <a href={safeHref(d.url)} target="_blank" rel="noopener noreferrer" className="text-xs hover:underline underline-offset-2" style={{ color: "var(--accent)" }}>
                         Open ↗
                       </a>
                     )}

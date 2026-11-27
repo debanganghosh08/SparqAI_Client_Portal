@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import PasswordInput from "./PasswordInput";
 import { useRouter } from "next/navigation";
 
 export default function AccountForm({ name: initialName }: { name: string }) {
@@ -43,11 +44,11 @@ export default function AccountForm({ name: initialName }: { name: string }) {
         <div className="space-y-4">
           <div>
             <label className="label" htmlFor="cur">Current password</label>
-            <input id="cur" type="password" className="input" value={currentPassword} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" />
+            <PasswordInput id="cur" value={currentPassword} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" />
           </div>
           <div>
             <label className="label" htmlFor="new">New password</label>
-            <input id="new" type="password" minLength={12} maxLength={128} className="input" value={newPassword} onChange={(e) => setNew(e.target.value)} placeholder="12+ characters, uppercase, number, symbol" autoComplete="new-password" />
+            <PasswordInput id="new" minLength={12} maxLength={128} value={newPassword} onChange={(e) => setNew(e.target.value)} placeholder="12+ characters, uppercase, number, symbol" autoComplete="new-password" />
             <p className="help">12–128 characters with an uppercase letter, a number, and a symbol. Leave both password fields blank to keep your current password.</p>
           </div>
         </div>

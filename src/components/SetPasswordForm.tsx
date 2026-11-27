@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Logo from "./Logo";
+import PasswordInput from "./PasswordInput";
 
 export default function SetPasswordForm({ portalName, name, isAdmin }: { portalName: string; name: string; isAdmin: boolean }) {
   const router = useRouter();
@@ -48,11 +49,11 @@ export default function SetPasswordForm({ portalName, name, isAdmin }: { portalN
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="label" htmlFor="pw">New password</label>
-              <input id="pw" type="password" required minLength={12} maxLength={128} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="12+ characters, uppercase, number, symbol" className="input" autoFocus autoComplete="new-password" />
+              <PasswordInput id="pw" required minLength={12} maxLength={128} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="12+ characters, uppercase, number, symbol" autoFocus autoComplete="new-password" />
             </div>
             <div>
               <label className="label" htmlFor="pw2">Confirm it</label>
-              <input id="pw2" type="password" required minLength={12} maxLength={128} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Type it again" className="input" autoComplete="new-password" />
+              <PasswordInput id="pw2" required minLength={12} maxLength={128} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Type it again" autoComplete="new-password" />
             </div>
             {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
             <button type="submit" disabled={loading} className="btn btn-primary w-full py-3 mt-1">

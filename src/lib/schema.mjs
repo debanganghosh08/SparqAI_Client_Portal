@@ -113,6 +113,12 @@ export const SCHEMA = `
     blocked_until INTEGER
   );
 
+  CREATE TABLE IF NOT EXISTS rate_limits (
+    bucket_hash TEXT PRIMARY KEY,
+    hits INTEGER NOT NULL DEFAULT 0,
+    window_started_at INTEGER NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_deliverables_user ON deliverables(user_id);
   CREATE INDEX IF NOT EXISTS idx_files_user ON files(user_id);
   CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id, created_at);

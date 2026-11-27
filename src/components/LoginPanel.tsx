@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { safeNextPath } from "@/lib/url";
 import Logo from "./Logo";
+import PasswordInput from "./PasswordInput";
 
 const STEPS = [
   { n: "01", title: "Onboard once", text: "Two forms and an upload. Everything we need, collected in one pass instead of six emails." },
@@ -39,8 +41,11 @@ export default function LoginPanel({ portalName, tagline, supportEmail }: { port
       setRetryAfterSeconds(Number(data.retryAfterSeconds) || 0);
       return;
     }
-    const next = params.get("next");
-    router.push(data.mustReset ? "/set-password" : data.role === "admin" ? "/admin" : next || "/");
+    // ?next= comes from the URL bar, so it is only ever a path inside the
+    // portal: an absolute one would turn our login page into a redirector
+    // somebody else can point anywhere.
+    const next = safeNextPath(params.get("next"));
+    router.push(data.mustReset ? "/set-password" : data.role === "admin" ? "/admin" : next);
     router.refresh();
   }
 
@@ -108,7 +113,7 @@ export default function LoginPanel({ portalName, tagline, supportEmail }: { port
               </div>
               <div>
                 <label className="label" htmlFor="password">Password</label>
-                <input id="password" type="password" required maxLength={128} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••••" className="input" autoComplete="current-password" />
+                <PasswordInput id="password" required maxLength={128} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••••" autoComplete="current-password" />
               </div>
               {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
               {attemptsRemaining !== null && attemptsRemaining > 0 && <p className="text-xs text-[var(--muted)]">{attemptsRemaining} sign-in attempt{attemptsRemaining === 1 ? "" : "s"} remaining before a 15-minute lockout.</p>}

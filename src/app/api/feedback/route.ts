@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
+import { hit, tooMany } from "@/lib/rateLimit";
 import { get, run } from "@/lib/db";
 
 export async function POST(req: Request) {
-  const session = await getSession();
+  const session = await requireSession();
   if (!session) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  const limit = hit("write", session.userId);
+  if (!limit.allowed) return tooMany(limit);
   if (session.role !== "client") return NextResponse.json({ error: "Client feedback is for client accounts." }, { status: 403 });
   const body = await req.json().catch(() => null) as { rating?: unknown; comment?: unknown } | null;
   const rating = Number(body?.rating);

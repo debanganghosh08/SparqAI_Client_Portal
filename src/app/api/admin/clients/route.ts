@@ -5,12 +5,18 @@ import { get, logActivity, run, type User } from "@/lib/db";
 import { getUserByEmail } from "@/lib/clients";
 import { generatePassword } from "@/lib/password";
 import { deleteUserUploads } from "@/lib/storage";
+import { hit, tooMany } from "@/lib/rateLimit";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: Request) {
   const session = await requireRole("admin");
   if (!session) return NextResponse.json({ error: "Admins only." }, { status: 403 });
+
+  // Creating a client hashes a password, so it is budgeted — on the admin
+  // provisioning allowance, not the one for changing your own password.
+  const limit = hit("provision", session.userId);
+  if (!limit.allowed) return tooMany(limit);
 
   const { name, email, company = "", projectName = "", startsOn = "" } = await req.json().catch(() => ({}));
   const cleanEmail = String(email ?? "").trim().toLowerCase();
@@ -49,6 +55,8 @@ export async function PATCH(req: Request) {
   if (!user) return NextResponse.json({ error: "Client not found." }, { status: 404 });
 
   if (action === "reset-password") {
+    const resetLimit = hit("provision", session.userId);
+    if (!resetLimit.allowed) return tooMany(resetLimit);
     const password = generatePassword();
     run("UPDATE users SET password_hash = ?, must_reset = 1, session_version = session_version + 1 WHERE id = ?", [bcrypt.hashSync(password, 12), user.id]);
     logActivity({ userId: user.id, actorName: session.name || session.email, actorRole: "admin", kind: "client_reset", summary: `Issued a new one-time password` });

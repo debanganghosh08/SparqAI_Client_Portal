@@ -122,6 +122,10 @@ input, textarea, select, button { outline: none; font: inherit; }
   transition: border-color .15s, box-shadow .15s, background .15s;
 }
 .input::placeholder { color: #55534e; }
+/* Edge draws its own reveal eye on password inputs; PasswordInput supplies
+   one, and two in the same corner is a bug people report. */
+input::-ms-reveal { display: none; }
+input::-ms-clear { display: none; }
 .input:hover { border-color: var(--border-hi); }
 .input:focus { border-color: rgba(216, 207, 192, .55); box-shadow: 0 0 0 3px var(--accent-soft); background: #100f0e; }
 textarea.input { min-height: 110px; resize: vertical; line-height: 1.6; }

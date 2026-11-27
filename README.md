@@ -120,9 +120,12 @@ The optional provider values in `.env.example` only indicate whether configurati
 Authentication is bcrypt and a signed JWT in an httpOnly cookie. Data is SQLite. Uploads are files on disk, served through a route that checks the session on every request. Nothing lands in `/public`.
 
 Passwords must be 12–128 characters and include an uppercase letter, a number,
-and a symbol. Login failures are limited to five attempts per account in a
-15-minute window, enforced by the server for both roles; the UI shows the
-remaining attempts and lockout. Password changes revoke older sessions.
+and a symbol. Password changes revoke older sessions.
+
+Login throttling (five attempts per account in a 15-minute window) is **stubbed
+for the current testing phase**. Set `LOGIN_THROTTLE=on` to restore it, and do
+so before the portal is reachable from the internet. See
+[`SECURITY.md`](SECURITY.md).
 
 ## Stack
 
@@ -196,7 +199,7 @@ Before you expose it:
 
 ## Security
 
-- Passwords are bcrypt hashed (cost 10) and never logged.
+- Passwords are bcrypt hashed (cost 12) and never logged.
 - Sessions are HS256 JWTs in httpOnly, sameSite `lax` cookies, seven-day expiry.
 - Middleware gates every route: no session means no page and no API.
 - A client can only ever read their own rows — file downloads check ownership on

@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
+import { hit, tooMany } from "@/lib/rateLimit";
 import { get, logActivity, run, type Deliverable } from "@/lib/db";
 
 /** The client side of the board: approve what is in review, or send it back. */
 export async function PATCH(req: Request) {
-  const session = await getSession();
+  const session = await requireSession();
   if (!session) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+
+  const limit = hit("write", session.userId);
+  if (!limit.allowed) return tooMany(limit);
 
   const { id, action } = await req.json().catch(() => ({}));
   const row = get<Deliverable>("SELECT * FROM deliverables WHERE id = ?", [Number(id)]);

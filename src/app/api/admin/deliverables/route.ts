@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { get, logActivity, run, type Deliverable } from "@/lib/db";
+import { hit, tooMany } from "@/lib/rateLimit";
+import { normalizeHref } from "@/lib/url";
 
 const STATUSES = new Set(["queued", "in_progress", "review", "approved"]);
 
@@ -8,13 +10,19 @@ export async function POST(req: Request) {
   const session = await requireRole("admin");
   if (!session) return NextResponse.json({ error: "Admins only." }, { status: 403 });
 
+  const limit = hit("write", session.userId);
+  if (!limit.allowed) return tooMany(limit);
+
   const { userId, title, summary = "", kind = "other", url = "", dueOn = "" } = await req.json().catch(() => ({}));
   if (!userId || !String(title ?? "").trim()) return NextResponse.json({ error: "A client and a title are required." }, { status: 400 });
+
+  const link = normalizeHref(String(url));
+  if (link === null) return NextResponse.json({ error: "That link is not a web address. Use an http or https URL." }, { status: 400 });
 
   const nextPos = (get<{ n: number }>("SELECT COALESCE(MAX(position), 0) + 1 AS n FROM deliverables WHERE user_id = ?", [Number(userId)])?.n ?? 1);
   const info = run(
     "INSERT INTO deliverables (user_id, title, summary, kind, url, due_on, position) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    [Number(userId), String(title).trim().slice(0, 160), String(summary).slice(0, 2000), String(kind), String(url).slice(0, 500), String(dueOn).slice(0, 20), nextPos]
+    [Number(userId), String(title).trim().slice(0, 160), String(summary).slice(0, 2000), String(kind), link.slice(0, 500), String(dueOn).slice(0, 20), nextPos]
   );
 
   logActivity({ userId: Number(userId), actorName: session.name, actorRole: "admin", kind: "deliverable_added", summary: `Added “${String(title).trim()}”` });
@@ -44,7 +52,11 @@ export async function PATCH(req: Request) {
   const fields: [string, unknown][] = [];
   if (title !== undefined) fields.push(["title", String(title).slice(0, 160)]);
   if (summary !== undefined) fields.push(["summary", String(summary).slice(0, 2000)]);
-  if (url !== undefined) fields.push(["url", String(url).slice(0, 500)]);
+  if (url !== undefined) {
+    const nextLink = normalizeHref(String(url));
+    if (nextLink === null) return NextResponse.json({ error: "That link is not a web address. Use an http or https URL." }, { status: 400 });
+    fields.push(["url", nextLink.slice(0, 500)]);
+  }
   if (dueOn !== undefined) fields.push(["due_on", String(dueOn).slice(0, 20)]);
   if (kind !== undefined) fields.push(["kind", String(kind).slice(0, 40)]);
   if (fields.length) {

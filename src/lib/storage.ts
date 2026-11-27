@@ -7,6 +7,9 @@ import crypto from "crypto";
 import { UPLOAD_DIR } from "./db";
 
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+/** Total upload allowance per client. Raise it per account when a project
+ *  genuinely needs more; the point is that no single login can fill the disk. */
+export const MAX_USER_BYTES = 500 * 1024 * 1024;
 
 const ALLOWED = new Set([
   "image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml", "image/avif",
@@ -18,8 +21,41 @@ const ALLOWED = new Set([
   "font/otf", "font/ttf", "font/woff", "font/woff2", "application/octet-stream",
 ]);
 
+/** Types a browser will execute as a document on our own origin. An upload that
+ *  the portal later serves inline would run as the viewer — including an admin
+ *  opening a client's file — so these never get in. */
+const EXECUTABLE = new Set([
+  "text/html", "application/xhtml+xml", "application/xml", "text/xml",
+  "application/javascript", "text/javascript", "module", "text/ecmascript",
+  "application/ecmascript", "application/x-httpd-php", "text/x-php",
+]);
+
+/** Served inline; everything else downloads. SVG is deliberately absent: it is
+ *  an image to a person and a script host to a browser. */
+const INLINE_SAFE = new Set([
+  "image/png", "image/jpeg", "image/gif", "image/webp", "image/avif",
+  "application/pdf", "text/plain", "text/csv", "text/markdown",
+]);
+
+export function isExecutableType(mime: string): boolean {
+  const base = mime.split(";")[0].trim().toLowerCase();
+  return EXECUTABLE.has(base) || (base.endsWith("+xml") && base !== "image/svg+xml");
+}
+
 export function isAllowedType(mime: string): boolean {
-  return ALLOWED.has(mime) || mime.startsWith("image/") || mime.startsWith("text/");
+  const base = mime.split(";")[0].trim().toLowerCase();
+  if (isExecutableType(base)) return false;
+  return ALLOWED.has(base) || base.startsWith("image/") || base.startsWith("text/");
+}
+
+/** True only for types that are safe to render in the browser tab. */
+export function isInlineSafeType(mime: string): boolean {
+  return INLINE_SAFE.has(mime.split(";")[0].trim().toLowerCase());
+}
+
+/** A filename safe to put inside a Content-Disposition header. */
+export function headerFilename(name: string): string {
+  return name.replace(/[^\w.\- ]+/g, "_").slice(0, 120) || "file";
 }
 
 /** Strip anything that could escape the uploads directory. */

@@ -2,6 +2,8 @@
 // `marked`. Edit freely: these are your words to your clients. {{portal}} and
 // {{email}} are replaced with the values from Admin → Settings.
 
+import { escapeHtml } from "./url";
+
 export type Doc = { id: string; title: string; minutes: number; body: string };
 
 export const DOCS: Record<string, Doc> = {
@@ -93,5 +95,9 @@ in a year, and do not rely on this portal being the only copy.
 };
 
 export function renderDoc(body: string, vars: { portal: string; email: string }): string {
-  return body.replaceAll("{{portal}}", vars.portal).replaceAll("{{email}}", vars.email);
+  // The result of this goes through `marked` and then into the page as raw
+  // HTML. The body is ours, but the two substitutions come from Admin →
+  // Settings, so they are escaped: a portal name containing a tag would
+  // otherwise be script running in every client's browser.
+  return body.replaceAll("{{portal}}", escapeHtml(vars.portal)).replaceAll("{{email}}", escapeHtml(vars.email));
 }

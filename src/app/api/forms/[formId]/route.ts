@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
+import { hit, tooMany } from "@/lib/rateLimit";
 import { logActivity } from "@/lib/db";
 import { completeStep, saveFormResponse } from "@/lib/clients";
 import { getForm, isFormComplete } from "@/lib/forms";
 import { ALL_STEPS } from "@/lib/journey";
 
 export async function POST(req: Request, { params }: { params: Promise<{ formId: string }> }) {
-  const session = await getSession();
+  const session = await requireSession();
   if (!session) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+
+  const limit = hit("write", session.userId);
+  if (!limit.allowed) return tooMany(limit);
 
   const { formId } = await params;
   const form = getForm(formId);

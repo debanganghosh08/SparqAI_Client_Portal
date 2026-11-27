@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { run } from "@/lib/db";
+import { hit, tooMany } from "@/lib/rateLimit";
 
 export async function POST(req: Request) {
   const session = await requireRole("admin");
   if (!session) return NextResponse.json({ error: "Admins only." }, { status: 403 });
+
+  const limit = hit("write", session.userId);
+  if (!limit.allowed) return tooMany(limit);
 
   const { userId, body } = await req.json().catch(() => ({}));
   const text = String(body ?? "").trim();

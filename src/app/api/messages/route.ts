@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
+import { hit, tooMany } from "@/lib/rateLimit";
 import { all, logActivity, run, type Message } from "@/lib/db";
 
 export async function GET(req: Request) {
-  const session = await getSession();
+  const session = await requireSession();
   if (!session) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
   const url = new URL(req.url);
@@ -14,8 +15,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const session = await getSession();
+  const session = await requireSession();
   if (!session) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+
+  const limit = hit("write", session.userId);
+  if (!limit.allowed) return tooMany(limit);
 
   const { body, userId } = await req.json().catch(() => ({}));
   const text = String(body ?? "").trim();
@@ -38,8 +42,11 @@ export async function POST(req: Request) {
 
 /** Mark the other side's messages in a thread as read. */
 export async function PATCH(req: Request) {
-  const session = await getSession();
+  const session = await requireSession();
   if (!session) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+
+  const limit = hit("write", session.userId);
+  if (!limit.allowed) return tooMany(limit);
 
   const { userId } = await req.json().catch(() => ({}));
   const threadId = session.role === "admin" ? Number(userId) : session.userId;

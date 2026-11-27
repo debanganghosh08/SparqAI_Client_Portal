@@ -25,10 +25,23 @@ export async function POST(req: Request) {
     );
   }
 
+  // The attempt is counted BEFORE the hash is compared, not after. Counting
+  // afterwards left a window: a script firing fifty requests at once passed the
+  // check above fifty times, because none of them had recorded a failure yet,
+  // and every one of them got a guess and a quarter-second of bcrypt. Reserving
+  // the attempt first means the limit holds under a parallel burst, and a
+  // correct password clears the count a few lines down.
+  const failure = recordLoginFailure(normalizedEmail, req);
+  if (failure.exceeded) {
+    return NextResponse.json(
+      { error: "Too many sign-in attempts. Try again after the lockout period.", attemptsRemaining: 0, retryAfterSeconds: failure.retryAfterSeconds },
+      { status: 429, headers: { "Retry-After": String(failure.retryAfterSeconds), "Cache-Control": "no-store" } },
+    );
+  }
+
   const user = getUserByEmail(normalizedEmail);
   const passwordMatches = await bcrypt.compare(password, user?.password_hash || DUMMY_PASSWORD_HASH);
   if (!user || !passwordMatches || user.status !== "active") {
-    const failure = recordLoginFailure(normalizedEmail, req);
     const locked = failure.retryAfterSeconds > 0;
     return NextResponse.json(
       {
@@ -43,7 +56,7 @@ export async function POST(req: Request) {
     );
   }
 
-  clearLoginFailures(normalizedEmail);
+  clearLoginFailures(normalizedEmail, req);
   run("UPDATE users SET last_seen_at = datetime('now') WHERE id = ?", [user.id]);
   logActivity({ userId: user.role === "client" ? user.id : null, actorName: user.name || user.email, actorRole: user.role, kind: "signin", summary: "Signed in" });
 

@@ -3,12 +3,16 @@ import { requireRole } from "@/lib/auth";
 import { logActivity } from "@/lib/db";
 import { saveSettings } from "@/lib/settings";
 import { SETTINGS_SCHEMA } from "@/lib/brand";
+import { hit, tooMany } from "@/lib/rateLimit";
 
 const ALLOWED: Set<string> = new Set(SETTINGS_SCHEMA.flatMap((g) => g.keys.map((k) => k.key)));
 
 export async function POST(req: Request) {
   const session = await requireRole("admin");
   if (!session) return NextResponse.json({ error: "Admins only." }, { status: 403 });
+
+  const limit = hit("write", session.userId);
+  if (!limit.allowed) return tooMany(limit);
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const patch: Record<string, string> = {};

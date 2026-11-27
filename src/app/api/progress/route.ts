@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
+import { hit, tooMany } from "@/lib/rateLimit";
 import { logActivity } from "@/lib/db";
 import { completeStep, uncompleteStep } from "@/lib/clients";
 import { ALL_STEP_IDS, ALL_STEPS, moduleOf } from "@/lib/journey";
 
 export async function POST(req: Request) {
-  const session = await getSession();
+  const session = await requireSession();
   if (!session) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+
+  const limit = hit("write", session.userId);
+  if (!limit.allowed) return tooMany(limit);
 
   const { stepId, done = true, userId } = await req.json().catch(() => ({}));
   if (!ALL_STEP_IDS.has(String(stepId))) return NextResponse.json({ error: "Unknown step." }, { status: 400 });
