@@ -4,11 +4,17 @@ import { getSettings, safeColor } from "@/lib/settings";
 import { BRAND } from "@/lib/brand";
 import "./globals.css";
 
+// Every page in this portal reads the session and the database, including the
+// title in generateMetadata below, so none of them can be prerendered at build
+// time. Declaring it here covers the generated pages too - /_not-found tried
+// to prerender and failed on the database before this.
+export const dynamic = "force-dynamic";
+
 const sans = Geist({ variable: "--font-sans", subsets: ["latin"] });
 const mono = Geist_Mono({ variable: "--font-mono", subsets: ["latin"] });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const s = getSettings();
+  const s = await getSettings();
   const name = s.portal_name || BRAND.name;
   return {
     title: { default: `${name} · Client Portal`, template: `%s · ${name}` },
@@ -25,7 +31,7 @@ function rgbTriplet(hex: string): string {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const s = getSettings();
+  const s = await getSettings();
   const accent = safeColor(s.accent_color || "", BRAND.colors.accent);
   const rgb = rgbTriplet(accent);
 

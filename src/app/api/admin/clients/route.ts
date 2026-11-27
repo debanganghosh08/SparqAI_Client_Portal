@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { requireRole } from "@/lib/auth";
-import { get, logActivity, run, type User } from "@/lib/db";
+import { get, insert, logActivity, run, type User } from "@/lib/db";
 import { getUserByEmail } from "@/lib/clients";
 import { generatePassword } from "@/lib/password";
 import { deleteUserUploads } from "@/lib/storage";
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 
   // Creating a client hashes a password, so it is budgeted — on the admin
   // provisioning allowance, not the one for changing your own password.
-  const limit = hit("provision", session.userId);
+  const limit = await hit("provision", session.userId);
   if (!limit.allowed) return tooMany(limit);
 
   const { name, email, company = "", projectName = "", startsOn = "" } = await req.json().catch(() => ({}));
@@ -23,11 +23,11 @@ export async function POST(req: Request) {
 
   if (!String(name ?? "").trim()) return NextResponse.json({ error: "A name is required." }, { status: 400 });
   if (!EMAIL_RE.test(cleanEmail)) return NextResponse.json({ error: "That email does not look right." }, { status: 400 });
-  if (getUserByEmail(cleanEmail)) return NextResponse.json({ error: "Someone already has that email." }, { status: 409 });
+  if (await getUserByEmail(cleanEmail)) return NextResponse.json({ error: "Someone already has that email." }, { status: 409 });
 
   // The client signs in once with this, then has to choose their own.
   const password = generatePassword();
-  const info = run(
+  const newClientId = await insert(
     `INSERT INTO users (email, name, company, password_hash, role, must_reset, project_name, starts_on)
      VALUES (?, ?, ?, ?, 'client', 1, ?, ?)`,
     [
@@ -40,8 +40,8 @@ export async function POST(req: Request) {
     ]
   );
 
-  const id = Number(info.lastInsertRowid);
-  logActivity({ userId: id, actorName: session.name || session.email, actorRole: "admin", kind: "client_created", summary: `Invited ${String(name).trim()} (${cleanEmail})` });
+  const id = newClientId;
+  await logActivity({ userId: id, actorName: session.name || session.email, actorRole: "admin", kind: "client_created", summary: `Invited ${String(name).trim()} (${cleanEmail})` });
 
   return NextResponse.json({ ok: true, id, email: cleanEmail, password });
 }
@@ -51,21 +51,21 @@ export async function PATCH(req: Request) {
   if (!session) return NextResponse.json({ error: "Admins only." }, { status: 403 });
 
   const { id, action, ...rest } = (await req.json().catch(() => ({}))) as Record<string, unknown> & { id?: number; action?: string };
-  const user = get<User>("SELECT * FROM users WHERE id = ? AND role = 'client'", [Number(id)]);
+  const user = await get<User>("SELECT * FROM users WHERE id = ? AND role = 'client'", [Number(id)]);
   if (!user) return NextResponse.json({ error: "Client not found." }, { status: 404 });
 
   if (action === "reset-password") {
-    const resetLimit = hit("provision", session.userId);
+    const resetLimit = await hit("provision", session.userId);
     if (!resetLimit.allowed) return tooMany(resetLimit);
     const password = generatePassword();
-    run("UPDATE users SET password_hash = ?, must_reset = 1, session_version = session_version + 1 WHERE id = ?", [bcrypt.hashSync(password, 12), user.id]);
-    logActivity({ userId: user.id, actorName: session.name || session.email, actorRole: "admin", kind: "client_reset", summary: `Issued a new one-time password` });
+    await run("UPDATE users SET password_hash = ?, must_reset = 1, session_version = session_version + 1 WHERE id = ?", [bcrypt.hashSync(password, 12), user.id]);
+    await logActivity({ userId: user.id, actorName: session.name || session.email, actorRole: "admin", kind: "client_reset", summary: `Issued a new one-time password` });
     return NextResponse.json({ ok: true, password });
   }
 
   if (action === "archive" || action === "restore") {
-    run("UPDATE users SET status = ? WHERE id = ?", [action === "archive" ? "archived" : "active", user.id]);
-    logActivity({ userId: user.id, actorName: session.name || session.email, actorRole: "admin", kind: "client_status", summary: action === "archive" ? "Archived the client" : "Restored the client" });
+    await run("UPDATE users SET status = ? WHERE id = ?", [action === "archive" ? "archived" : "active", user.id]);
+    await logActivity({ userId: user.id, actorName: session.name || session.email, actorRole: "admin", kind: "client_status", summary: action === "archive" ? "Archived the client" : "Restored the client" });
     return NextResponse.json({ ok: true });
   }
 
@@ -77,7 +77,7 @@ export async function PATCH(req: Request) {
     if (key === "email") {
       const cleanEmail = String(v).trim().toLowerCase();
       if (!EMAIL_RE.test(cleanEmail)) return NextResponse.json({ error: "That email does not look right." }, { status: 400 });
-      const clash = getUserByEmail(cleanEmail);
+      const clash = await getUserByEmail(cleanEmail);
       if (clash && clash.id !== user.id) return NextResponse.json({ error: "Someone already has that email." }, { status: 409 });
       fields.push([col, cleanEmail]);
     } else {
@@ -85,7 +85,7 @@ export async function PATCH(req: Request) {
     }
   }
   if (fields.length) {
-    run(`UPDATE users SET ${fields.map(([f]) => `${f} = ?`).join(", ")} WHERE id = ?`, [...fields.map(([, v]) => v), user.id]);
+    await run(`UPDATE users SET ${fields.map(([f]) => `${f} = ?`).join(", ")} WHERE id = ?`, [...fields.map(([, v]) => v), user.id]);
   }
 
   return NextResponse.json({ ok: true });
@@ -96,14 +96,14 @@ export async function DELETE(req: Request) {
   if (!session) return NextResponse.json({ error: "Admins only." }, { status: 403 });
 
   const { id } = await req.json().catch(() => ({}));
-  const user = get<User>("SELECT * FROM users WHERE id = ? AND role = 'client'", [Number(id)]);
+  const user = await get<User>("SELECT * FROM users WHERE id = ? AND role = 'client'", [Number(id)]);
   if (!user) return NextResponse.json({ error: "Client not found." }, { status: 404 });
 
   // Progress, forms, deliverables, files, messages, and notes cascade with the
   // row; the files on disk do not, so they go first.
-  deleteUserUploads(user.id);
-  run("DELETE FROM users WHERE id = ?", [user.id]);
-  logActivity({ actorName: session.name || session.email, actorRole: "admin", kind: "client_deleted", summary: `Deleted ${user.name || user.email} and everything attached to them` });
+  await deleteUserUploads(user.id);
+  await run("DELETE FROM users WHERE id = ?", [user.id]);
+  await logActivity({ actorName: session.name || session.email, actorRole: "admin", kind: "client_deleted", summary: `Deleted ${user.name || user.email} and everything attached to them` });
 
   return NextResponse.json({ ok: true });
 }

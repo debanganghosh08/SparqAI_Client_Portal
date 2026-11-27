@@ -1,24 +1,115 @@
-// The portal stores everything in one SQLite file (data/portico.db) and one
-// uploads directory (data/uploads). No external service, no API key, no
-// migration tool: the schema in schema.mjs is created on first import and is
-// the single source of truth.
-import Database from "better-sqlite3";
-import path from "path";
-import fs from "fs";
+// The portal's data lives in PostgreSQL (Supabase in production) and its
+// uploads in Supabase Storage. It ran on a local SQLite file until 27 Nov
+// 2026; the move was forced by Vercel, whose filesystem is read-only and whose
+// instances are discarded between requests, so a file-backed database cannot
+// survive there at all.
+//
+// Everything still goes through get/all/run, which now return promises.
+// `toPg` below keeps the call sites in SQLite's own dialect - `?` placeholders
+// and datetime('now') - so the ninety-odd queries in this app did not have to
+// be rewritten one by one, only awaited.
+import { Pool, types as pgTypes } from "pg";
 import { SCHEMA } from "./schema.mjs";
 
-export const DATA_DIR = path.join(process.cwd(), "data");
-export const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+// pg hands back BIGINT (int8) as a string, because a 64-bit integer does not
+// always fit a JS number. Every int8 in this schema is a byte count or a
+// millisecond timestamp, both comfortably inside Number.MAX_SAFE_INTEGER, and
+// a string here would silently turn `used + file.size` into concatenation.
+pgTypes.setTypeParser(20, (value) => Number(value));
 
-const db = new Database(path.join(DATA_DIR, "portico.db"));
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
+// The pool is built on first use, not on import. A Next build imports every
+// route to collect its metadata, and a module that throws without
+// DATABASE_URL would make the build itself depend on the database being
+// reachable. A missing variable now fails the first query, with the same
+// message, where it is actually actionable.
+const globalForDb = globalThis as unknown as { __portalPool?: Pool };
+let poolRef: Pool | null = globalForDb.__portalPool ?? null;
 
-db.exec(SCHEMA);
-const userColumns = db.pragma("table_info(users)") as { name: string }[];
-if (!userColumns.some((column) => column.name === "session_version")) {
-  db.exec("ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0");
+function getPool(): Pool {
+  if (poolRef) return poolRef;
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error(
+      "DATABASE_URL is not set. Supabase: Project Settings -> Database -> Connection string -> Transaction pooler.",
+    );
+  }
+  // Supabase's pooler presents a certificate this client has no root for, so
+  // verification is off for that host only. The connection is still
+  // encrypted. A direct (non-pooler) connection keeps full verification.
+  const isSupabasePooler = /pooler\.supabase\.com/.test(connectionString);
+  poolRef = new Pool({
+    connectionString,
+    // Serverless runs many small instances, and a generous pool in each is how
+    // a quiet site exhausts a Postgres connection limit.
+    max: Number(process.env.PG_POOL_MAX || 3),
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 10_000,
+    ssl: isSupabasePooler ? { rejectUnauthorized: false } : undefined,
+  });
+  // A pool emits an error when the server hangs up on an idle client.
+  // Unhandled, that takes the process down.
+  poolRef.on("error", (error) => console.error("[db] idle client error:", error.message));
+  // One pool per process, kept on globalThis so Next's dev server does not
+  // leak a new one on every hot reload.
+  if (process.env.NODE_ENV !== "production") globalForDb.__portalPool = poolRef;
+  return poolRef;
+}
+
+/** SQLite's UTC text timestamp, to the second: the format every formatter in
+ *  this app expects to read back. */
+const PG_NOW = "to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')";
+
+/** Rewrites a SQLite query into the Postgres dialect: `?` becomes `$1`, `$2`
+ *  and so on, and datetime('now') becomes its Postgres equivalent. A question
+ *  mark inside a string literal is left alone. */
+export function toPg(sql: string): string {
+  const withNow = sql.split("datetime('now')").join(PG_NOW);
+  let out = "";
+  let placeholder = 0;
+  let inString = false;
+  for (let i = 0; i < withNow.length; i += 1) {
+    const char = withNow[i];
+    if (inString) {
+      out += char;
+      // '' is an escaped quote inside a literal, not the end of one.
+      if (char === "'") {
+        if (withNow[i + 1] === "'") {
+          out += "'";
+          i += 1;
+        } else {
+          inString = false;
+        }
+      }
+      continue;
+    }
+    if (char === "'") {
+      inString = true;
+      out += char;
+      continue;
+    }
+    if (char === "?") {
+      placeholder += 1;
+      out += "$" + placeholder;
+      continue;
+    }
+    out += char;
+  }
+  return out;
+}
+
+async function query<T>(sql: string, params: unknown[]): Promise<T[]> {
+  const result = await getPool().query(toPg(sql), params as never[]);
+  return result.rows as T[];
+}
+
+/** Creates the schema. Called by `npm run db:push`, never on import: on a
+ *  serverless host every cold start would otherwise race every other one. */
+export async function pushSchema() {
+  await getPool().query(SCHEMA);
+}
+
+export async function closePool() {
+  await getPool().end();
 }
 
 export type Role = "admin" | "client";
@@ -96,35 +187,45 @@ export type ActivityRow = {
 };
 
 /** Small typed wrappers so callers never touch the driver directly. */
-export function get<T>(sql: string, params: unknown[] = []): T | undefined {
-  return db.prepare(sql).get(...params) as T | undefined;
+export async function get<T>(sql: string, params: unknown[] = []): Promise<T | undefined> {
+  const rows = await query<T>(sql, params);
+  return rows[0];
 }
 
-export function all<T>(sql: string, params: unknown[] = []): T[] {
-  return db.prepare(sql).all(...params) as T[];
+export async function all<T>(sql: string, params: unknown[] = []): Promise<T[]> {
+  return query<T>(sql, params);
 }
 
-export function run(sql: string, params: unknown[] = []) {
-  return db.prepare(sql).run(...params);
+export async function run(sql: string, params: unknown[] = []): Promise<{ changes: number }> {
+  const result = await getPool().query(toPg(sql), params as never[]);
+  return { changes: result.rowCount ?? 0 };
 }
 
-export function getSetting(key: string): string {
-  const row = get<{ value: string }>("SELECT value FROM settings WHERE key = ?", [key]);
+/** An INSERT whose new id the caller needs. SQLite handed this back on every
+ *  write as lastInsertRowid; Postgres has to be asked for it. */
+export async function insert(sql: string, params: unknown[] = []): Promise<number> {
+  const row = await get<{ id: number }>(sql + " RETURNING id", params);
+  if (!row) throw new Error("Insert returned no id.");
+  return Number(row.id);
+}
+
+export async function getSetting(key: string): Promise<string> {
+  const row = await get<{ value: string }>("SELECT value FROM settings WHERE key = ?", [key]);
   return row?.value ?? "";
 }
 
-export function setSetting(key: string, value: string) {
-  run("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [key, value]);
+export async function setSetting(key: string, value: string) {
+  await run("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [key, value]);
 }
 
-export function logActivity(entry: {
+export async function logActivity(entry: {
   userId?: number | null;
   actorName: string;
   actorRole: Role;
   kind: string;
   summary: string;
 }) {
-  run("INSERT INTO activity (user_id, actor_name, actor_role, kind, summary) VALUES (?, ?, ?, ?, ?)", [
+  await run("INSERT INTO activity (user_id, actor_name, actor_role, kind, summary) VALUES (?, ?, ?, ?, ?)", [
     entry.userId ?? null,
     entry.actorName,
     entry.actorRole,
@@ -133,4 +234,4 @@ export function logActivity(entry: {
   ]);
 }
 
-export default db;
+export default getPool;

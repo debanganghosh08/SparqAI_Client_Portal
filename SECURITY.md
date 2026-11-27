@@ -91,6 +91,14 @@ scanning or magic-byte inspection of uploads — a declared type is trusted for
 the allowlist, which is why nothing outside a short safe list is ever rendered
 inline. No encryption of data at rest beyond whatever the host volume provides.
 
+## Storage
+
+Uploaded files are objects in a **private** Supabase Storage bucket, reached
+with the service-role key from the server only. Every download goes through
+`/api/files/[id]`, which checks the session and the owner before it reads a
+byte. The bucket is never public: a public URL works for whoever holds it, and
+one client's link would be one guess away from another client's file.
+
 ## Credentials
 
 `npm run setup` generates a strong random admin password and prints it once; it

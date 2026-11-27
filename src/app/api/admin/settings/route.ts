@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   const session = await requireRole("admin");
   if (!session) return NextResponse.json({ error: "Admins only." }, { status: 403 });
 
-  const limit = hit("write", session.userId);
+  const limit = await hit("write", session.userId);
   if (!limit.allowed) return tooMany(limit);
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
@@ -19,8 +19,8 @@ export async function POST(req: Request) {
   for (const [k, v] of Object.entries(body)) {
     if (ALLOWED.has(k)) patch[k] = String(v ?? "").slice(0, 4000);
   }
-  saveSettings(patch);
-  logActivity({ actorName: session.name || session.email, actorRole: "admin", kind: "settings", summary: `Updated portal settings` });
+  await saveSettings(patch);
+  await logActivity({ actorName: session.name || session.email, actorRole: "admin", kind: "settings", summary: `Updated portal settings` });
 
   return NextResponse.json({ ok: true });
 }

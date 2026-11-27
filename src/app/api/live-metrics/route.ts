@@ -13,7 +13,7 @@ export async function GET() {
   // Each call fans out to EmailBison and GoHighLevel. Their rate limits are
   // shared across everything Sparq runs, so a held-down button here would cost
   // us sending capacity elsewhere.
-  const limit = hit("provider", session.userId);
+  const limit = await hit("provider", session.userId);
   if (!limit.allowed) return tooMany(limit);
 
   const result = await getLiveMetrics();

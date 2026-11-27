@@ -19,7 +19,7 @@ const SECURITY_HEADERS = [
 const HSTS = { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" };
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["better-sqlite3"],
+  serverExternalPackages: ["pg"],
   // The dev badge lands on top of the sidebar account menu.
   devIndicators: false,
   poweredByHeader: false,

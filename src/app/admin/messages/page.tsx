@@ -13,10 +13,10 @@ export default async function AdminMessages() {
   const session = await getSession();
   if (!session || session.role !== "admin") redirect("/");
 
-  const s = getSettings();
-  const unread = get<{ n: number }>("SELECT COUNT(*) AS n FROM messages WHERE author_role = 'client' AND read_by_admin = 0")?.n ?? 0;
+  const s = await getSettings();
+  const unread = (await get<{ n: number }>("SELECT COUNT(*) AS n FROM messages WHERE author_role = 'client' AND read_by_admin = 0"))?.n ?? 0;
 
-  const threads = all<{ user_id: number; client: string; company: string; body: string; author_role: string; created_at: string; unread: number }>(
+  const threads = await all<{ user_id: number; client: string; company: string; body: string; author_role: string; created_at: string; unread: number }>(
     `SELECT u.id AS user_id, u.name AS client, u.company,
             m.body, m.author_role, m.created_at,
             (SELECT COUNT(*) FROM messages x WHERE x.user_id = u.id AND x.author_role = 'client' AND x.read_by_admin = 0) AS unread

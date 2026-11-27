@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   const session = await requireSession();
   if (!session) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
-  const limit = hit("write", session.userId);
+  const limit = await hit("write", session.userId);
   if (!limit.allowed) return tooMany(limit);
 
   const { stepId, done = true, userId } = await req.json().catch(() => ({}));
@@ -18,11 +18,11 @@ export async function POST(req: Request) {
   // Admins can tick a step on a client's behalf; clients only ever touch their own.
   const targetId = session.role === "admin" && userId ? Number(userId) : session.userId;
 
-  if (done) completeStep(targetId, String(stepId));
-  else uncompleteStep(targetId, String(stepId));
+  if (done) await completeStep(targetId, String(stepId));
+  else await uncompleteStep(targetId, String(stepId));
 
   const step = ALL_STEPS.find((s) => s.id === stepId);
-  logActivity({
+  await logActivity({
     userId: targetId,
     actorName: session.name || session.email,
     actorRole: session.role,

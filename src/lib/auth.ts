@@ -20,7 +20,7 @@ export async function getSession(): Promise<Session | null> {
   if (!token) return null;
   const session = await verifySessionToken(token);
   if (!session) return null;
-  const account = get<{ session_version: number; status: string; must_reset: number }>(
+  const account = await get<{ session_version: number; status: string; must_reset: number }>(
     "SELECT session_version, status, must_reset FROM users WHERE id = ?",
     [session.userId],
   );

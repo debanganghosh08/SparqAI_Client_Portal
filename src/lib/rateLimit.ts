@@ -38,27 +38,31 @@ function bucketHash(name: string, identity: string): string {
 
 /** Counts one hit against `identity` and says whether it is allowed. Call it
  *  before doing the work, not after, so a parallel burst cannot slip through. */
-export function hit(name: LimitName, identity: string | number): LimitResult {
+export async function hit(name: LimitName, identity: string | number): Promise<LimitResult> {
   const { limit, windowMs } = LIMITS[name];
   const now = Date.now();
   const key = bucketHash(name, String(identity));
 
   // Keep the table from growing without bound; windows are minutes, not days.
-  if (Math.random() < 0.02) run("DELETE FROM rate_limits WHERE window_started_at < ?", [now - 24 * 60 * 60 * 1000]);
+  if (Math.random() < 0.02) await run("DELETE FROM rate_limits WHERE window_started_at < ?", [now - 24 * 60 * 60 * 1000]);
 
-  const row = get<{ hits: number; window_started_at: number }>(
-    "SELECT hits, window_started_at FROM rate_limits WHERE bucket_hash = ?",
-    [key],
+  // One statement, not read-then-write. Under better-sqlite3 the old two-step
+  // version was safe because the driver is synchronous and serialised every
+  // caller; against Postgres over a network, two parallel requests would both
+  // read the same count and both write count + 1, and the budget would be
+  // whatever the concurrency happened to be. The UPSERT below decides the new
+  // count inside the row lock, so a burst is counted once per request.
+  const row = await get<{ hits: number; window_started_at: number }>(
+    `INSERT INTO rate_limits (bucket_hash, hits, window_started_at) VALUES (?, 1, ?)
+     ON CONFLICT(bucket_hash) DO UPDATE SET
+       hits = CASE WHEN ? - rate_limits.window_started_at >= ? THEN 1 ELSE rate_limits.hits + 1 END,
+       window_started_at = CASE WHEN ? - rate_limits.window_started_at >= ? THEN ? ELSE rate_limits.window_started_at END
+     RETURNING hits, window_started_at`,
+    [key, now, now, windowMs, now, windowMs, now],
   );
-  const fresh = !row || now - row.window_started_at >= windowMs;
-  const windowStartedAt = fresh ? now : row.window_started_at;
-  const hits = (fresh ? 0 : row.hits) + 1;
 
-  run(
-    `INSERT INTO rate_limits (bucket_hash, hits, window_started_at) VALUES (?, ?, ?)
-     ON CONFLICT(bucket_hash) DO UPDATE SET hits = excluded.hits, window_started_at = excluded.window_started_at`,
-    [key, hits, windowStartedAt],
-  );
+  const hits = Number(row?.hits ?? 1);
+  const windowStartedAt = Number(row?.window_started_at ?? now);
 
   if (hits <= limit) return { allowed: true, retryAfterSeconds: 0 };
   return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((windowStartedAt + windowMs - now) / 1000)) };

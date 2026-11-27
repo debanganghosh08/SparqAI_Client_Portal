@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function IntegrationsPage() {
   const session = await getSession();
   if (!session) redirect("/login");
-  const settings = getSettings();
+  const settings = await getSettings();
   const providers = getProviders();
   return <PortalShell name={session.name || session.email} role={session.role} view={session.role === "admin" ? "admin" : "client"} portalName={settings.portal_name}>
     <div className="max-w-5xl mx-auto fade-up">

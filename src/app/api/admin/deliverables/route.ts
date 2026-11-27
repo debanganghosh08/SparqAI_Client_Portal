@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
-import { get, logActivity, run, type Deliverable } from "@/lib/db";
+import { get, insert, logActivity, run, type Deliverable } from "@/lib/db";
 import { hit, tooMany } from "@/lib/rateLimit";
 import { normalizeHref } from "@/lib/url";
 
@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   const session = await requireRole("admin");
   if (!session) return NextResponse.json({ error: "Admins only." }, { status: 403 });
 
-  const limit = hit("write", session.userId);
+  const limit = await hit("write", session.userId);
   if (!limit.allowed) return tooMany(limit);
 
   const { userId, title, summary = "", kind = "other", url = "", dueOn = "" } = await req.json().catch(() => ({}));
@@ -19,14 +19,14 @@ export async function POST(req: Request) {
   const link = normalizeHref(String(url));
   if (link === null) return NextResponse.json({ error: "That link is not a web address. Use an http or https URL." }, { status: 400 });
 
-  const nextPos = (get<{ n: number }>("SELECT COALESCE(MAX(position), 0) + 1 AS n FROM deliverables WHERE user_id = ?", [Number(userId)])?.n ?? 1);
-  const info = run(
-    "INSERT INTO deliverables (user_id, title, summary, kind, url, due_on, position) VALUES (?, ?, ?, ?, ?, ?, ?)",
+  const nextPos = ((await get<{ n: number }>("SELECT COALESCE(MAX(position), 0) + 1 AS n FROM deliverables WHERE user_id = ?", [Number(userId)]))?.n ?? 1);
+  const newDeliverableId = await insert(
+    "INSERT INTO await deliverables(user_id, title, summary, kind, url, due_on, position) VALUES (?, ?, ?, ?, ?, ?, ?)",
     [Number(userId), String(title).trim().slice(0, 160), String(summary).slice(0, 2000), String(kind), link.slice(0, 500), String(dueOn).slice(0, 20), nextPos]
   );
 
-  logActivity({ userId: Number(userId), actorName: session.name, actorRole: "admin", kind: "deliverable_added", summary: `Added “${String(title).trim()}”` });
-  return NextResponse.json({ ok: true, id: info.lastInsertRowid });
+  await logActivity({ userId: Number(userId), actorName: session.name, actorRole: "admin", kind: "deliverable_added", summary: `Added “${String(title).trim()}”` });
+  return NextResponse.json({ ok: true, id: newDeliverableId });
 }
 
 export async function PATCH(req: Request) {
@@ -34,19 +34,19 @@ export async function PATCH(req: Request) {
   if (!session) return NextResponse.json({ error: "Admins only." }, { status: 403 });
 
   const { id, status, title, summary, url, dueOn, kind } = await req.json().catch(() => ({}));
-  const row = get<Deliverable>("SELECT * FROM deliverables WHERE id = ?", [Number(id)]);
+  const row = await get<Deliverable>("SELECT * FROM deliverables WHERE id = ?", [Number(id)]);
   if (!row) return NextResponse.json({ error: "Deliverable not found." }, { status: 404 });
 
   if (status !== undefined) {
     if (!STATUSES.has(String(status))) return NextResponse.json({ error: "Unknown status." }, { status: 400 });
-    run(
+    await run(
       `UPDATE deliverables SET status = ?,
          delivered_at = CASE WHEN ? IN ('review','approved') THEN COALESCE(delivered_at, datetime('now')) ELSE NULL END,
          approved_at  = CASE WHEN ? = 'approved' THEN COALESCE(approved_at, datetime('now')) ELSE NULL END
        WHERE id = ?`,
       [String(status), String(status), String(status), row.id]
     );
-    logActivity({ userId: row.user_id, actorName: session.name, actorRole: "admin", kind: "deliverable_status", summary: `Moved “${row.title}” to ${String(status).replace("_", " ")}` });
+    await logActivity({ userId: row.user_id, actorName: session.name, actorRole: "admin", kind: "deliverable_status", summary: `Moved “${row.title}” to ${String(status).replace("_", " ")}` });
   }
 
   const fields: [string, unknown][] = [];
@@ -60,7 +60,7 @@ export async function PATCH(req: Request) {
   if (dueOn !== undefined) fields.push(["due_on", String(dueOn).slice(0, 20)]);
   if (kind !== undefined) fields.push(["kind", String(kind).slice(0, 40)]);
   if (fields.length) {
-    run(`UPDATE deliverables SET ${fields.map(([f]) => `${f} = ?`).join(", ")} WHERE id = ?`, [...fields.map(([, v]) => v), row.id]);
+    await run(`UPDATE deliverables SET ${fields.map(([f]) => `${f} = ?`).join(", ")} WHERE id = ?`, [...fields.map(([, v]) => v), row.id]);
   }
 
   return NextResponse.json({ ok: true });
@@ -71,10 +71,10 @@ export async function DELETE(req: Request) {
   if (!session) return NextResponse.json({ error: "Admins only." }, { status: 403 });
 
   const { id } = await req.json().catch(() => ({}));
-  const row = get<Deliverable>("SELECT * FROM deliverables WHERE id = ?", [Number(id)]);
+  const row = await get<Deliverable>("SELECT * FROM deliverables WHERE id = ?", [Number(id)]);
   if (!row) return NextResponse.json({ error: "Deliverable not found." }, { status: 404 });
 
-  run("DELETE FROM deliverables WHERE id = ?", [row.id]);
-  logActivity({ userId: row.user_id, actorName: session.name, actorRole: "admin", kind: "deliverable_removed", summary: `Removed “${row.title}”` });
+  await run("DELETE FROM deliverables WHERE id = ?", [row.id]);
+  await logActivity({ userId: row.user_id, actorName: session.name, actorRole: "admin", kind: "deliverable_removed", summary: `Removed “${row.title}”` });
   return NextResponse.json({ ok: true });
 }

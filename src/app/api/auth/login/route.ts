@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   }
 
   const normalizedEmail = email.trim().toLowerCase();
-  const limit = checkLoginLimit(normalizedEmail, req);
+  const limit = await checkLoginLimit(normalizedEmail, req);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Too many sign-in attempts. Try again after the lockout period.", attemptsRemaining: 0, retryAfterSeconds: limit.retryAfterSeconds },
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   // and every one of them got a guess and a quarter-second of bcrypt. Reserving
   // the attempt first means the limit holds under a parallel burst, and a
   // correct password clears the count a few lines down.
-  const failure = recordLoginFailure(normalizedEmail, req);
+  const failure = await recordLoginFailure(normalizedEmail, req);
   if (failure.exceeded) {
     return NextResponse.json(
       { error: "Too many sign-in attempts. Try again after the lockout period.", attemptsRemaining: 0, retryAfterSeconds: failure.retryAfterSeconds },
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const user = getUserByEmail(normalizedEmail);
+  const user = await getUserByEmail(normalizedEmail);
   const passwordMatches = await bcrypt.compare(password, user?.password_hash || DUMMY_PASSWORD_HASH);
   if (!user || !passwordMatches || user.status !== "active") {
     const locked = failure.retryAfterSeconds > 0;
@@ -56,9 +56,9 @@ export async function POST(req: Request) {
     );
   }
 
-  clearLoginFailures(normalizedEmail, req);
-  run("UPDATE users SET last_seen_at = datetime('now') WHERE id = ?", [user.id]);
-  logActivity({ userId: user.role === "client" ? user.id : null, actorName: user.name || user.email, actorRole: user.role, kind: "signin", summary: "Signed in" });
+  await clearLoginFailures(normalizedEmail, req);
+  await run("UPDATE users SET last_seen_at = datetime('now') WHERE id = ?", [user.id]);
+  await logActivity({ userId: user.role === "client" ? user.id : null, actorName: user.name || user.email, actorRole: user.role, kind: "signin", summary: "Signed in" });
 
   const token = await createSessionToken({
     userId: user.id,

@@ -10,7 +10,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ formId:
   const session = await requireSession();
   if (!session) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
-  const limit = hit("write", session.userId);
+  const limit = await hit("write", session.userId);
   if (!limit.allowed) return tooMany(limit);
 
   const { formId } = await params;
@@ -29,12 +29,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ formId:
     return NextResponse.json({ error: "Some required answers are still blank." }, { status: 400 });
   }
 
-  saveFormResponse(session.userId, formId, clean, Boolean(submit));
+  await saveFormResponse(session.userId, formId, clean, Boolean(submit));
 
   if (submit) {
     const step = ALL_STEPS.find((s) => s.form === formId);
-    if (step) completeStep(session.userId, step.id);
-    logActivity({
+    if (step) await completeStep(session.userId, step.id);
+    await logActivity({
       userId: session.userId,
       actorName: session.name || session.email,
       actorRole: session.role,

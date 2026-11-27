@@ -33,10 +33,10 @@ let warned = false;
 function warnOnce() {
   if (warned) return;
   warned = true;
-  console.warn("[auth] Login throttling is STUBBED (LOGIN_THROTTLE is not \"on\"). Password guessing is unlimited.");
+  console.warn('[auth] Login throttling is STUBBED (LOGIN_THROTTLE is not "on"). Password guessing is unlimited.');
 }
 
-type AttemptBucket = { bucket_hash: string; failures: number; window_started_at: number; blocked_until: number | null };
+type AttemptBucket = { failures: number; window_started_at: number };
 type BucketInput = { kind: "account" | "ip"; value: string; limit: number };
 
 function bucketHash(kind: string, value: string): string {
@@ -62,33 +62,37 @@ function bucketsFor(email: string, request: Request): BucketInput[] {
   return buckets;
 }
 
-function readBucket(key: string, now: number): AttemptBucket | null {
-  const bucket = get<AttemptBucket>("SELECT * FROM auth_login_attempts WHERE bucket_hash = ?", [key]);
-  if (!bucket) return null;
-  if (now - bucket.window_started_at >= WINDOW_MS) {
-    run("DELETE FROM auth_login_attempts WHERE bucket_hash = ?", [key]);
-    return null;
-  }
-  return bucket;
+/** Whether a bucket is locked out, derived rather than stored. There used to
+ *  be a `blocked_until` column; it only ever held window_started_at plus the
+ *  window, so it was one more value that could disagree with the row it lived
+ *  in, and one more write to get right under concurrency. */
+function lockoutSeconds(bucket: AttemptBucket | undefined, limit: number, now: number): number {
+  if (!bucket) return 0;
+  const startedAt = Number(bucket.window_started_at);
+  if (now - startedAt >= WINDOW_MS) return 0;
+  if (Number(bucket.failures) < limit) return 0;
+  return Math.max(1, Math.ceil((startedAt + WINDOW_MS - now) / 1000));
 }
 
-export function checkLoginLimit(email: string, request: Request) {
+export async function checkLoginLimit(email: string, request: Request) {
   if (!THROTTLE_ENABLED) {
     warnOnce();
     return { allowed: true, retryAfterSeconds: 0, attemptsRemaining: null as number | null };
   }
   const now = Date.now();
-  run("DELETE FROM auth_login_attempts WHERE window_started_at < ?", [now - 24 * 60 * 60 * 1000]);
+  await run("DELETE FROM auth_login_attempts WHERE window_started_at < ?", [now - 24 * 60 * 60 * 1000]);
   let retryAfterSeconds = 0;
   let accountFailures = 0;
 
   for (const bucketInput of bucketsFor(email, request)) {
     const key = bucketHash(bucketInput.kind, bucketInput.value);
-    const bucket = readBucket(key, now);
-    if (bucketInput.kind === "account") accountFailures = bucket?.failures ?? 0;
-    if (bucket?.blocked_until && bucket.blocked_until > now) {
-      retryAfterSeconds = Math.max(retryAfterSeconds, Math.ceil((bucket.blocked_until - now) / 1000));
-    }
+    const bucket = await get<AttemptBucket>(
+      "SELECT failures, window_started_at FROM auth_login_attempts WHERE bucket_hash = ?",
+      [key],
+    );
+    const stale = bucket ? now - Number(bucket.window_started_at) >= WINDOW_MS : true;
+    if (bucketInput.kind === "account") accountFailures = stale ? 0 : Number(bucket?.failures ?? 0);
+    retryAfterSeconds = Math.max(retryAfterSeconds, lockoutSeconds(bucket, bucketInput.limit, now));
   }
 
   return {
@@ -99,11 +103,14 @@ export function checkLoginLimit(email: string, request: Request) {
 }
 
 /** Counts one attempt and says whether it is over budget. Called before the
- *  password is compared, so the decision is made on the post-increment count:
- *  better-sqlite3 is synchronous, so a burst of parallel sign-ins is serialised
- *  here and each request sees its own place in the queue. Counting afterwards
- *  instead let every request in a burst read "under the limit" at once. */
-export function recordLoginFailure(email: string, request: Request): LoginAttemptResult {
+ *  password is compared, so the decision is made on the post-increment count.
+ *
+ *  The count comes from a single UPSERT rather than a read followed by a
+ *  write. better-sqlite3 is synchronous and serialised every caller, which hid
+ *  the gap; against Postgres over a network, two parallel sign-ins would both
+ *  read the same count and both store count + 1, and five guesses would become
+ *  as many as an attacker could issue at once. */
+export async function recordLoginFailure(email: string, request: Request): Promise<LoginAttemptResult> {
   if (!THROTTLE_ENABLED) {
     warnOnce();
     return UNTHROTTLED;
@@ -115,22 +122,22 @@ export function recordLoginFailure(email: string, request: Request): LoginAttemp
 
   for (const bucketInput of bucketsFor(email, request)) {
     const key = bucketHash(bucketInput.kind, bucketInput.value);
-    const existing = readBucket(key, now);
-    const windowStartedAt = existing?.window_started_at ?? now;
-    const failures = (existing?.failures ?? 0) + 1;
-    const blockedUntil = failures >= bucketInput.limit ? windowStartedAt + WINDOW_MS : null;
-    run(
-      `INSERT INTO auth_login_attempts (bucket_hash, failures, window_started_at, blocked_until)
-       VALUES (?, ?, ?, ?)
+    const row = await get<AttemptBucket>(
+      `INSERT INTO auth_login_attempts (bucket_hash, failures, window_started_at) VALUES (?, 1, ?)
        ON CONFLICT(bucket_hash) DO UPDATE SET
-         failures = excluded.failures,
-         window_started_at = excluded.window_started_at,
-         blocked_until = excluded.blocked_until`,
-      [key, failures, windowStartedAt, blockedUntil],
+         failures = CASE WHEN ? - auth_login_attempts.window_started_at >= ? THEN 1 ELSE auth_login_attempts.failures + 1 END,
+         window_started_at = CASE WHEN ? - auth_login_attempts.window_started_at >= ? THEN ? ELSE auth_login_attempts.window_started_at END
+       RETURNING failures, window_started_at`,
+      [key, now, now, WINDOW_MS, now, WINDOW_MS, now],
     );
 
+    const failures = Number(row?.failures ?? 1);
+    const windowStartedAt = Number(row?.window_started_at ?? now);
+
     if (bucketInput.kind === "account") attemptsRemaining = Math.max(0, ACCOUNT_MAX_FAILURES - failures);
-    if (blockedUntil && blockedUntil > now) retryAfterSeconds = Math.max(retryAfterSeconds, Math.ceil((blockedUntil - now) / 1000));
+    if (failures >= bucketInput.limit) {
+      retryAfterSeconds = Math.max(retryAfterSeconds, Math.max(1, Math.ceil((windowStartedAt + WINDOW_MS - now) / 1000)));
+    }
     // The attempt that reaches the limit is still answered honestly; only the
     // ones past it are turned away, so five wrong guesses means five guesses.
     if (failures > bucketInput.limit) exceeded = true;
@@ -140,15 +147,15 @@ export function recordLoginFailure(email: string, request: Request): LoginAttemp
 }
 
 /** Called on a successful sign-in. Every bucket the attempt was counted
- *  against is rolled back, including the IP one: the attempt is now counted
+ *  against is rolled back, including the IP one: the attempt is counted
  *  before the password is checked, so a correct password that left the IP
  *  counter incremented would let an office share its way into a lockout. */
-export function clearLoginFailures(email: string, request?: Request) {
+export async function clearLoginFailures(email: string, request?: Request) {
   if (!THROTTLE_ENABLED) return;
   const buckets = request
     ? bucketsFor(email, request)
     : [{ kind: "account" as const, value: email.trim().toLowerCase(), limit: ACCOUNT_MAX_FAILURES }];
   for (const bucket of buckets) {
-    run("DELETE FROM auth_login_attempts WHERE bucket_hash = ?", [bucketHash(bucket.kind, bucket.value)]);
+    await run("DELETE FROM auth_login_attempts WHERE bucket_hash = ?", [bucketHash(bucket.kind, bucket.value)]);
   }
 }

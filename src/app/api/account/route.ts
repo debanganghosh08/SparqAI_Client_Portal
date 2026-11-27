@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
-  const limit = hit("write", session.userId);
+  const limit = await hit("write", session.userId);
   if (!limit.allowed) return tooMany(limit);
 
   const { name, currentPassword, newPassword } = await req.json().catch(() => ({}));
@@ -19,20 +19,20 @@ export async function POST(req: Request) {
   const cleanName = typeof name === "string" && name.trim() ? name.trim().slice(0, 120) : "";
 
   if (cleanName) {
-    run("UPDATE users SET name = ? WHERE id = ?", [cleanName, session.userId]);
+    await run("UPDATE users SET name = ? WHERE id = ?", [cleanName, session.userId]);
   }
 
   if (newPassword) {
     if (!isStrongEnough(newPassword)) return NextResponse.json({ error: "Use 12–128 characters with an uppercase letter, a number, and a symbol." }, { status: 400 });
     // bcrypt at cost 12 is a quarter-second of CPU per call, so the comparison
     // below is throttled whether or not the guess is right.
-    const passwordLimit = hit("password", session.userId);
+    const passwordLimit = await hit("password", session.userId);
     if (!passwordLimit.allowed) return tooMany(passwordLimit);
-    const row = get<{ password_hash: string }>("SELECT password_hash FROM users WHERE id = ?", [session.userId]);
+    const row = await get<{ password_hash: string }>("SELECT password_hash FROM users WHERE id = ?", [session.userId]);
     if (!row || !bcrypt.compareSync(String(currentPassword ?? ""), row.password_hash)) {
       return NextResponse.json({ error: "Your current password is not right." }, { status: 400 });
     }
-    run("UPDATE users SET password_hash = ?, must_reset = 0, session_version = session_version + 1 WHERE id = ?", [bcrypt.hashSync(String(newPassword), 12), session.userId]);
+    await run("UPDATE users SET password_hash = ?, must_reset = 0, session_version = session_version + 1 WHERE id = ?", [bcrypt.hashSync(String(newPassword), 12), session.userId]);
     sessionVersion += 1;
   }
 

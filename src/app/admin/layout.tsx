@@ -3,7 +3,7 @@ import { getSettings } from "@/lib/settings";
 import { BRAND } from "@/lib/brand";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = getSettings();
+  const settings = await getSettings();
   return { title: `${settings.portal_name || BRAND.name} · Admin Portal` };
 }
 

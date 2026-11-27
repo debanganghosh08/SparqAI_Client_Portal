@@ -1,14 +1,19 @@
 #!/usr/bin/env node
-// Wipes the database and every upload. There is no undo.
-import fs from "node:fs";
-import path from "node:path";
+// Empties every table and every upload. There is no undo.
+//
+// This used to delete data/, which was the whole database. The data now lives
+// in Postgres and Supabase Storage, so it is emptied rather than unlinked, and
+// the schema is left in place.
+import { createClient } from "@supabase/supabase-js";
+import { pool, q, done } from "./_db.mjs";
 
-const dataDir = path.join(process.cwd(), "data");
+const BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "portal-uploads";
+const host = (process.env.DATABASE_URL.split("@")[1] || "unknown").split("/")[0];
 
 if (!process.argv.includes("--yes")) {
   console.log(`
-  This deletes data/portico.db and every file in data/uploads.
-  Nothing is recoverable afterwards.
+  This empties every table on ${host} and every file in the
+  ${BUCKET} bucket. Nothing is recoverable afterwards.
 
   Run it again with --yes if that is what you want:
 
@@ -17,6 +22,30 @@ if (!process.argv.includes("--yes")) {
   process.exit(1);
 }
 
-fs.rmSync(dataDir, { recursive: true, force: true });
-fs.mkdirSync(path.join(dataDir, "uploads"), { recursive: true });
-console.log("→ data/ cleared. Run `npm run setup` to start again.");
+// users last: everything else cascades from it anyway, but being explicit
+// keeps the order readable.
+const TABLES = ["activity", "notes", "messages", "files", "deliverables", "form_responses", "progress", "settings", "auth_login_attempts", "rate_limits", "users"];
+for (const table of TABLES) {
+  await pool.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
+}
+console.log(`→ ${TABLES.length} tables emptied`);
+
+const url = process.env.SUPABASE_URL;
+const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!url || !key) {
+  console.log("→ uploads: skipped (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set)");
+} else {
+  const storage = createClient(url, key, { auth: { persistSession: false } });
+  const { data: folders } = await storage.storage.from(BUCKET).list("", { limit: 1000 });
+  let removed = 0;
+  for (const folder of folders ?? []) {
+    const { data: objects } = await storage.storage.from(BUCKET).list(folder.name, { limit: 1000 });
+    if (!objects?.length) continue;
+    await storage.storage.from(BUCKET).remove(objects.map((o) => `${folder.name}/${o.name}`));
+    removed += objects.length;
+  }
+  console.log(`→ uploads: ${removed} objects removed`);
+}
+
+console.log("→ Done. Run `npm run setup` to start again.");
+await done();
