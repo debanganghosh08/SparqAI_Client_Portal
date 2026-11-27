@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   if (!threadId) return NextResponse.json({ error: "Which client?" }, { status: 400 });
 
   await run(
-    `INSERT INTO await messages(user_id, author_id, author_role, author_name, body, read_by_client, read_by_admin)
+    `INSERT INTO messages(user_id, author_id, author_role, author_name, body, read_by_client, read_by_admin)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [threadId, session.userId, session.role, session.name || session.email, text, session.role === "client" ? 1 : 0, session.role === "admin" ? 1 : 0]
   );

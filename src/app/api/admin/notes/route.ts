@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   const text = String(body ?? "").trim();
   if (!userId || !text) return NextResponse.json({ error: "A client and a note are required." }, { status: 400 });
 
-  await run("INSERT INTO await notes(user_id, author_name, body) VALUES (?, ?, ?)", [Number(userId), session.name || session.email, text.slice(0, 4000)]);
+  await run("INSERT INTO notes(user_id, author_name, body) VALUES (?, ?, ?)", [Number(userId), session.name || session.email, text.slice(0, 4000)]);
   return NextResponse.json({ ok: true });
 }
 

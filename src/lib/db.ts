@@ -16,6 +16,12 @@ import { SCHEMA } from "./schema.mjs";
 // millisecond timestamp, both comfortably inside Number.MAX_SAFE_INTEGER, and
 // a string here would silently turn `used + file.size` into concatenation.
 pgTypes.setTypeParser(20, (value) => Number(value));
+// SUM() over a BIGINT column returns NUMERIC, not BIGINT, and pg returns
+// NUMERIC as a string too. The per-client disk quota does
+// `used + file.size > MAX_USER_BYTES`, which with a string `used` concatenates
+// instead of adding and rejects uploads at the wrong size. This schema has no
+// NUMERIC columns of its own, so every value of this type is an aggregate.
+pgTypes.setTypeParser(1700, (value) => Number(value));
 
 // The pool is built on first use, not on import. A Next build imports every
 // route to collect its metadata, and a module that throws without

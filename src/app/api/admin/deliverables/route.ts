@@ -21,7 +21,7 @@ export async function POST(req: Request) {
 
   const nextPos = ((await get<{ n: number }>("SELECT COALESCE(MAX(position), 0) + 1 AS n FROM deliverables WHERE user_id = ?", [Number(userId)]))?.n ?? 1);
   const newDeliverableId = await insert(
-    "INSERT INTO await deliverables(user_id, title, summary, kind, url, due_on, position) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO deliverables(user_id, title, summary, kind, url, due_on, position) VALUES (?, ?, ?, ?, ?, ?, ?)",
     [Number(userId), String(title).trim().slice(0, 160), String(summary).slice(0, 2000), String(kind), link.slice(0, 500), String(dueOn).slice(0, 20), nextPos]
   );
 

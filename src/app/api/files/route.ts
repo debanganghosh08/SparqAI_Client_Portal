@@ -52,7 +52,9 @@ export async function POST(req: Request) {
 
   // A per-client ceiling on disk. Twenty-five MB a file with nothing above it
   // means one account can fill the volume and take the portal down with it.
-  const used = (await get<{ n: number }>("SELECT COALESCE(SUM(size), 0) AS n FROM files WHERE user_id = ?", [ownerId]))?.n ?? 0;
+  // Number() as well as the NUMERIC type parser in db.ts: a quota that
+  // silently concatenates instead of adding is not worth relying on one of them.
+  const used = Number((await get<{ n: number }>("SELECT COALESCE(SUM(size), 0) AS n FROM files WHERE user_id = ?", [ownerId]))?.n ?? 0);
   if (used + file.size > MAX_USER_BYTES) {
     return NextResponse.json({ error: "This project has reached its storage limit. Delete a file or ask us to raise it." }, { status: 413 });
   }
@@ -60,7 +62,7 @@ export async function POST(req: Request) {
   const { storedName, size } = await saveUpload(ownerId, file);
 
   await run(
-    `INSERT INTO await files(user_id, uploaded_by, uploader_role, label, category, file_name, stored_name, mime, size)
+    `INSERT INTO files(user_id, uploaded_by, uploader_role, label, category, file_name, stored_name, mime, size)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [ownerId, session.userId, session.role, label, category, safeName(file.name), storedName, file.type || "application/octet-stream", size]
   );
