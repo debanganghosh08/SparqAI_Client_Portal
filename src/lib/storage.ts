@@ -24,10 +24,13 @@ let cached: SupabaseClient | null = null;
 function storage(): SupabaseClient {
   if (cached) return cached;
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Supabase is replacing the legacy `service_role` JWT with a secret key
+  // (`sb_secret_...`); both authenticate the same way and both are accepted
+  // here, so a project created under either scheme works without a rename.
+  const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
     throw new Error(
-      "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for uploads. Supabase: Project Settings -> API.",
+      "SUPABASE_URL and SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY) are required for uploads. Supabase: Settings -> API Keys.",
     );
   }
   cached = createClient(url, key, { auth: { persistSession: false } });

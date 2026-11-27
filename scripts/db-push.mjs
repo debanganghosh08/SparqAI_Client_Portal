@@ -7,7 +7,10 @@
 import { SCHEMA } from "../src/lib/schema.mjs";
 import { pool, q, done } from "./_db.mjs";
 
-const where = new URL(`postgres://${process.env.DATABASE_URL.split("@")[1] ?? "unknown"}`).host;
+// Everything after the LAST "@", not the first: a database password may
+// contain an "@" of its own, and splitting on the first one would print part
+// of it to the terminal.
+const where = (process.env.DATABASE_URL.split("@").pop() || "unknown").split("/")[0];
 console.log(`→ Applying the schema to ${where}`);
 
 await pool.query(SCHEMA);

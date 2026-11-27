@@ -113,7 +113,7 @@ for (const [i, [title, summary, kind, status, due]] of deliverables.entries()) {
 // A couple of files so the Files screen is not empty. They go to the same
 // bucket the app reads from, not to disk.
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 const demoFiles = [
   ["northwind-brand-notes.txt", "brand", "client", "Notes on the existing brand:\n\n- The wordmark was drawn in 2016 and has been redrawn twice since, badly.\n- Nobody knows which green is correct.\n- The only asset everyone likes is the arch motif from the Lisbon site.\n"],
   ["design-system-v1.txt", "delivery", "admin", "Design system, version 1\n\nType:  Söhne for text, GT Alpina for display\nScale: 12 / 14 / 16 / 20 / 28 / 40 / 64\nInk:   #12110f on #faf8f4\nAccent: a single warm stone, used only for state\n"],

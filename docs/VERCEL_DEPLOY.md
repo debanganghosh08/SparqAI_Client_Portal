@@ -14,7 +14,7 @@ collect four values from it.
 | --- | --- | --- |
 | Connection string, **Transaction pooler** (port 6543) | Project Settings → Database | `DATABASE_URL` |
 | Project URL | Project Settings → API | `SUPABASE_URL` |
-| `service_role` key | Project Settings → API | `SUPABASE_SERVICE_ROLE_KEY` |
+| Secret key (`sb_secret_…`) | Settings → API Keys → **Secret keys** | `SUPABASE_SECRET_KEY` |
 | — | Storage → New bucket, named `portal-uploads`, **private** | `SUPABASE_STORAGE_BUCKET` |
 
 Use the **transaction pooler**, not the direct connection. Every serverless
@@ -46,7 +46,7 @@ Variables, for Production and Preview:
 | --- | --- |
 | `DATABASE_URL` | the transaction-pooler string |
 | `SUPABASE_URL` | |
-| `SUPABASE_SERVICE_ROLE_KEY` | server-only; never `NEXT_PUBLIC_` |
+| `SUPABASE_SECRET_KEY` | server-only; never `NEXT_PUBLIC_`. On an older project this is the legacy `service_role` JWT, read from `SUPABASE_SERVICE_ROLE_KEY` instead |
 | `SUPABASE_STORAGE_BUCKET` | `portal-uploads` |
 | `AUTH_SECRET` | the same value as `.env.local`, or every existing session is invalidated |
 | `LOGIN_THROTTLE` | **set to `on` before anyone outside the team has the URL** |

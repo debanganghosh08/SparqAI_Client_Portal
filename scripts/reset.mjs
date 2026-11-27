@@ -8,7 +8,8 @@ import { createClient } from "@supabase/supabase-js";
 import { pool, q, done } from "./_db.mjs";
 
 const BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "portal-uploads";
-const host = (process.env.DATABASE_URL.split("@")[1] || "unknown").split("/")[0];
+// After the LAST "@": a password may contain one, and the first would print part of it.
+const host = (process.env.DATABASE_URL.split("@").pop() || "unknown").split("/")[0];
 
 if (!process.argv.includes("--yes")) {
   console.log(`
@@ -31,7 +32,7 @@ for (const table of TABLES) {
 console.log(`→ ${TABLES.length} tables emptied`);
 
 const url = process.env.SUPABASE_URL;
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !key) {
   console.log("→ uploads: skipped (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set)");
 } else {

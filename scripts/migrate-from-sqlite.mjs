@@ -84,7 +84,7 @@ console.log("→ id sequences advanced past the copied rows");
 
 // Uploads.
 const url = process.env.SUPABASE_URL;
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !key) {
   console.log("→ uploads: skipped (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set)");
 } else if (!fs.existsSync(uploadsDir)) {
