@@ -8,6 +8,7 @@ import type { Module } from "@/lib/journey";
 import type { StepData } from "@/lib/stepData";
 import DocStep from "./steps/DocStep";
 import FormStep from "./steps/FormStep";
+import TallyStep from "./steps/TallyStep";
 import UploadStep from "./steps/UploadStep";
 import ChecklistStep from "./steps/ChecklistStep";
 import ActionStep from "./steps/ActionStep";
@@ -160,7 +161,11 @@ export default function ModuleView({
 
                   {data?.kind === "doc" && <DocStep title={data.title} minutes={data.minutes} html={data.html} />}
                   {data?.kind === "form" && (
-                    <FormStep form={data.form} initial={data.data} status={data.status} onSubmitted={() => markFromContent(step.id)} />
+                    data.tally ? (
+                      <TallyStep src={data.tally.embed} openUrl={data.tally.open} title={step.title} onSubmitted={() => markFromContent(step.id)} />
+                    ) : (
+                      <FormStep form={data.form} initial={data.data} status={data.status} onSubmitted={() => markFromContent(step.id)} />
+                    )
                   )}
                   {data?.kind === "upload" && (
                     <UploadStep category={data.category} asks={data.asks} initialFiles={data.files} onUploaded={() => markFromContent(step.id)} />
@@ -168,7 +173,7 @@ export default function ModuleView({
                   {data?.kind === "checklist" && (
                     <ChecklistStep stepId={step.id} items={data.items} checked={data.checked} onAllChecked={() => markFromContent(step.id)} />
                   )}
-                  {data?.kind === "action" && <ActionStep label={data.label} url={data.url} note={data.note} />}
+                  {data?.kind === "action" && <ActionStep label={data.label} url={data.url} note={data.note} onBooked={() => markFromContent(step.id)} />}
                   {data?.kind === "board" && <BoardStep items={data.items} />}
                   {data?.kind === "handoff" && (
                     <HandoffStep

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
+import { realEmail } from "@/lib/brand";
 import { completedSteps, messages } from "@/lib/clients";
 import PortalShell from "@/components/PortalShell";
 import Thread from "@/components/Thread";
@@ -21,7 +22,7 @@ export default async function MessagesPage() {
         <p className="eyebrow mb-3">Messages</p>
         <h1 className="text-[2rem] lg:text-[2.4rem] font-bold mb-2 title-grad">Your thread</h1>
         <p className="text-[var(--muted)] text-sm mb-8 max-w-xl">
-          One thread, attached to your project, so whoever answers already has the context. For anything urgent, email {s.support_email}.
+          One thread, attached to your project, so whoever answers already has the context.{realEmail(s.support_email) && <> For anything urgent, email {realEmail(s.support_email)}.</>}
         </p>
         <Thread
           initial={thread.map((m) => ({ id: m.id, body: m.body, authorName: m.author_name, authorRole: m.author_role, createdAt: m.created_at }))}

@@ -53,7 +53,7 @@ export default function AdminClientDetail({
   client: Client;
   completed: string[];
   journey: { slug: string; title: string; steps: { id: string; title: string; type: string }[] }[];
-  intake: { form: Form; data: Record<string, string | string[]>; status: string; submittedAt: string | null }[];
+  intake: { form: Form; data: Record<string, string | string[]>; status: string; submittedAt: string | null; tally?: boolean }[];
   checklists: { stepId: string; title: string; items: string[]; checked: boolean[] }[];
   deliverables: AdminDeliverable[];
   files: { id: number; name: string; size: number; createdAt: string; category: string; fromUs: boolean }[];
@@ -285,7 +285,23 @@ export default function AdminClientDetail({
 
       {tab === "intake" && (
         <div className="space-y-5">
-          {intake.map(({ form, data, status, submittedAt }) => {
+          {intake.map(({ form, data, status, submittedAt, tally }) => {
+            // Answered in Tally: there is nothing here to show, and blank
+            // fields would read as "the client has not started".
+            if (tally) {
+              return (
+                <div key={form.id} className="card p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                    <h2 className="text-[16px] font-semibold">{form.title}</h2>
+                    <span className="chip chip-next">Answered in Tally</span>
+                  </div>
+                  <p className="text-[13.5px] text-[var(--muted)] leading-relaxed max-w-2xl">
+                    This step uses your Tally form (Admin → Settings → Tally forms), so the answers are in your Tally workspace, not here.
+                    If the form has hidden fields named email, name and company, each response is labelled with the client who sent it.
+                  </p>
+                </div>
+              );
+            }
             const answered = form.fields.filter((f) => {
               const v = data[f.id];
               return Array.isArray(v) ? v.length > 0 : String(v ?? "").trim().length > 0;

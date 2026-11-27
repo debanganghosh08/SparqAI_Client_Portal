@@ -2,6 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { marked } from "marked";
 import { getSession } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
+import { realEmail } from "@/lib/brand";
+import { tallyEmbed } from "@/lib/embeds";
 import { completedSteps, deliverables, files, formResponse, getUser, unreadFor } from "@/lib/clients";
 import { JOURNEY, getModule, isModuleUnlocked } from "@/lib/journey";
 import { DOCS, renderDoc } from "@/lib/docs";
@@ -39,12 +41,20 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
     if (step.type === "doc" && step.doc) {
       const doc = DOCS[step.doc];
       stepData[step.id] = doc
-        ? { kind: "doc", title: doc.title, minutes: doc.minutes, html: await marked.parse(renderDoc(doc.body, { portal: s.portal_name, email: s.support_email })) }
+        ? { kind: "doc", title: doc.title, minutes: doc.minutes, html: await marked.parse(renderDoc(doc.body, { portal: s.portal_name, email: realEmail(s.support_email) })) }
         : { kind: "doc", title: step.title, minutes: 1, html: "" };
     } else if (step.type === "form" && step.form) {
       const form = FORMS[step.form];
       const saved = await formResponse(session.userId, step.form);
-      stepData[step.id] = { kind: "form", form, data: saved.data as Record<string, string | string[]>, status: saved.status, updatedAt: saved.updatedAt };
+      // A Tally link pasted for this form in Admin -> Settings replaces the
+      // built-in form. The client's email, name and company ride along so the
+      // response in Tally says whose it is.
+      const tally = tallyEmbed(s[`tally_${step.form}_url`] ?? "", {
+        email: user?.email ?? session.email,
+        name: user?.name ?? "",
+        company: user?.company ?? "",
+      });
+      stepData[step.id] = { kind: "form", form, data: saved.data as Record<string, string | string[]>, status: saved.status, updatedAt: saved.updatedAt, ...(tally ? { tally } : {}) };
     } else if (step.type === "upload" && step.upload) {
       stepData[step.id] = {
         kind: "upload",
@@ -69,7 +79,7 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
         intro: await marked.parse(DOCS.handoff.body),
         deliverables: (await deliverables(session.userId)).map((d) => ({ id: d.id, title: d.title, status: d.status, url: d.url })),
         files: (await files(session.userId)).map((f) => ({ id: f.id, name: f.file_name, size: f.size, category: f.category })),
-        supportEmail: s.support_email,
+        supportEmail: realEmail(s.support_email),
         projectName: user?.project_name || user?.company || "",
         clientName: user?.name || "",
         portalName: s.portal_name,

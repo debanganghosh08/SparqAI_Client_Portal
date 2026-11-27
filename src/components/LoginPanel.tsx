@@ -92,9 +92,10 @@ export default function LoginPanel({ portalName, tagline, supportEmail }: { port
           </div>
         </div>
 
-        <p className="text-xs relative text-[var(--faint)] fade-up" style={{ animationDelay: "0.7s" }}>
-          {portalName} · Questions? {supportEmail}
-        </p>
+        {/* The footer line that sat here ("Questions? <email>") was removed at
+            Dai's request. The spacer keeps justify-between from dropping the
+            copy above to the bottom edge of the panel. */}
+        <div aria-hidden className="h-4" />
       </div>
 
       {/* Right: sign in */}
@@ -123,10 +124,14 @@ export default function LoginPanel({ portalName, tagline, supportEmail }: { port
               </button>
             </form>
           </div>
-          <p className="text-xs text-center mt-6 leading-relaxed text-[var(--faint)]">
-            Trouble signing in? Email{" "}
-            <a href={`mailto:${supportEmail}`} className="underline underline-offset-2 hover:text-neutral-300">{supportEmail}</a>
-          </p>
+          {/* Only when a real address is set in Admin → Settings: a help line
+              pointing at a placeholder inbox is worse than no help line. */}
+          {supportEmail && (
+            <p className="text-xs text-center mt-6 leading-relaxed text-[var(--faint)]">
+              Trouble signing in? Email{" "}
+              <a href={`mailto:${supportEmail}`} className="underline underline-offset-2 hover:text-neutral-300">{supportEmail}</a>
+            </p>
+          )}
         </div>
       </div>
     </main>

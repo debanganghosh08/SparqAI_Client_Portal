@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifySessionToken, COOKIE_NAME } from "@/lib/sessionToken";
+import { FRAME_ORIGINS } from "@/lib/embeds";
 
 const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/health"];
 
@@ -55,7 +56,9 @@ export async function middleware(req: NextRequest) {
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    "frame-src 'none'",
+    // Only the schedulers and form host in lib/embeds.ts. Everything else
+    // stays unframeable, whatever an admin pastes into Settings.
+    `frame-src ${FRAME_ORIGINS.join(" ")}`,
     ...(dev ? [] : ["upgrade-insecure-requests"]),
   ].join("; ");
 

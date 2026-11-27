@@ -76,8 +76,8 @@ export default function HandoffStep({
       <div className="card-flat p-5">
         <p className="text-sm font-medium mb-1">After handoff</p>
         <p className="text-[13px] text-[var(--muted)] leading-relaxed">
-          This portal stays open — come back for anything you need. Questions land fastest at{" "}
-          <a href={`mailto:${supportEmail}`} className="underline underline-offset-2 text-white">{supportEmail}</a>.
+          This portal stays open — come back for anything you need.{supportEmail ? <> Questions land fastest at{" "}</> : null}
+          {supportEmail && <><a href={`mailto:${supportEmail}`} className="underline underline-offset-2 text-white">{supportEmail}</a>.</>}
         </p>
       </div>
     </div>

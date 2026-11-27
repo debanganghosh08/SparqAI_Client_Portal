@@ -6,7 +6,7 @@ export type StepFile = { id: number; name: string; size: number; createdAt?: str
 
 export type StepData =
   | { kind: "doc"; title: string; minutes: number; html: string }
-  | { kind: "form"; form: Form; data: Record<string, string | string[]>; status: string; updatedAt: string }
+  | { kind: "form"; form: Form; data: Record<string, string | string[]>; status: string; updatedAt: string; tally?: { embed: string; open: string } }
   | { kind: "upload"; category: string; asks: string[]; files: StepFile[] }
   | { kind: "checklist"; items: string[]; checked: boolean[] }
   | { kind: "action"; label: string; url: string; note: string }

@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
+import { tallyEmbed } from "@/lib/embeds";
 import { completedSteps, deliverables, files, formResponse, getUser, messages, notes } from "@/lib/clients";
 import { all, get } from "@/lib/db";
 import { JOURNEY } from "@/lib/journey";
@@ -30,7 +31,8 @@ export default async function AdminClientPage({
 
   const intake = await Promise.all(Object.values(FORMS).map(async (form) => {
     const saved = await formResponse(client.id, form.id);
-    return { form, data: saved.data as Record<string, string | string[]>, status: saved.status, submittedAt: saved.submittedAt };
+    const tally = Boolean(tallyEmbed(s[`tally_${form.id}_url`] ?? "", {}));
+    return { form, data: saved.data as Record<string, string | string[]>, status: saved.status, submittedAt: saved.submittedAt, tally };
   }));
   const feedback = (await formResponse(client.id, "portal_feedback")).data;
 

@@ -33,8 +33,22 @@ export default async function DeliverablesPage() {
       <div className="max-w-4xl mx-auto fade-up">
         <p className="eyebrow mb-3">Deliverables</p>
         <h1 className="text-[2rem] lg:text-[2.4rem] font-bold mb-2 title-grad">The board</h1>
-        <p className="text-[var(--muted)] text-sm mb-9 max-w-xl">
-          Every piece of work, with a status you can read at a glance. Anything under “Waiting on you” is holding the next thing up.
+        <p className="text-[var(--muted)] text-sm mb-3 max-w-2xl leading-relaxed">
+          Everything we are producing for you, and where each piece stands. Work moves left to right, and only one stage needs you:{" "}
+          <strong className="text-white font-medium">Waiting on you</strong> is where a finished piece sits until you approve it or ask for
+          changes. When it reads 0, there is nothing for you to do.
+        </p>
+        {/* The stages in the order work moves through them. The summary cards
+            below are ordered by urgency instead, which is why this line is
+            here: Dai could not tell how the board worked from the cards alone. */}
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-[var(--muted)] mb-9">
+          <span>Queued</span>
+          <span aria-hidden>→</span>
+          <span>In progress</span>
+          <span aria-hidden>→</span>
+          <span className="text-white">Waiting on you</span>
+          <span aria-hidden>→</span>
+          <span>Approved</span>
         </p>
         <DeliverablesBoard items={items} />
       </div>

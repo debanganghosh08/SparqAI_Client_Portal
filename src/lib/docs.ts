@@ -99,5 +99,9 @@ export function renderDoc(body: string, vars: { portal: string; email: string })
   // HTML. The body is ours, but the two substitutions come from Admin →
   // Settings, so they are escaped: a portal name containing a tag would
   // otherwise be script running in every client's browser.
-  return body.replaceAll("{{portal}}", escapeHtml(vars.portal)).replaceAll("{{email}}", escapeHtml(vars.email));
+  const text = body.replaceAll("{{portal}}", escapeHtml(vars.portal));
+  if (vars.email) return text.replaceAll("{{email}}", escapeHtml(vars.email));
+  // No real support address yet: drop the sentence that would have offered
+  // one, rather than print "email us at ." or a placeholder inbox.
+  return text.replace(/[^.!?\n]*\{\{email\}\}[^.!?\n]*[.!?]?/g, "");
 }
